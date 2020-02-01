@@ -80,11 +80,9 @@ bool cGeoUtil::CalcLineLineIntersection(double x1, double y1, double x2, double 
 		(y0 < y2 && y0 > y1))
 	{
 		ixOut = (x2 + x1 * (y2 - y0) / (y0 - y1)) / (1 + (y2 - y1) / (y0 - y1));
+		return true;
 	}
-	else
-	{
-		return false;
-	}
+	return false;
 }
 
 double cGeoUtil::CalcSlope2D(double x1, double y1, double x2, double y2)

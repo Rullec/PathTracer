@@ -1,9 +1,9 @@
-include_directories(./include)
+aux_source_directory(./scene scene_src)
+aux_source_directory(./geometry geometry_src)
+aux_source_directory(./model model_src)
 
-aux_source_directory(./scene Scene_src)
-aux_source_directory(./geometry Geometry_src)
-aux_source_directory(./model Model_src)
-aux_source_directory(./render Render_src)
-aux_source_directory(./util Util_src)
+add_subdirectory(render)
+aux_source_directory(./util util_src)
 
-add_library(src ${Scene_src}  ${Geometry_src} ${Model_src} ${Render_src} ${Util_src} )
+add_library(src ${scene_src} ${geometry_src} ${model_src} ${util_src})
+target_link_libraries(src render)

@@ -105,3 +105,8 @@ bool cMathUtil::JudgeInRange(double val, double thre0, double thre1, double eps)
 	//}
 	return final_res;
 }
+
+double cMathUtil::Radians(double degree)
+{
+	return degree / 180.0 * M_PI;
+}

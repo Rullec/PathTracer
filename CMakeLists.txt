@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 2.8)
 project(PathTracer CXX)
 set (CMAKE_CXX_STANDARD 11)
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ADDITIONAL_CFLAGS} -g")
+set(CMAKE_BUILD_TYPE "Release")
 
 find_package(PkgConfig REQUIRED)
 pkg_search_module(GLFW REQUIRED glfw3)

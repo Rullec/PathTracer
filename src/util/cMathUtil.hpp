@@ -45,4 +45,5 @@ public:
 	static tVector QuaternionToAxisAngle(const tQuaternion & );
 	static tVector CalcAngularVelocity(const tQuaternion & old_rot, const tQuaternion & new_rot, double timestep);
 	static bool JudgeInRange(double val, double thre0, double thre1, double eps = 1e-5);
+	static double Radians(double degree);
 };

@@ -7,9 +7,10 @@ glm::vec3 cGlmUtil::tVectorToGlmVector3(const tVector & t)
 
 tMatrix cGlmUtil::GlmMatixTotMatrix(const glm::mat4 & mat)
 {
+	// glm is accessed by column, now row!!!
 	tMatrix res_mat = tMatrix::Identity();
-	for(int i=0; i<3; i++)
-		for (int j = 0; j < 3; j++)
-			res_mat(i, j) = mat[i][j];
+	for(int i=0; i<4; i++)
+		for (int j = 0; j < 4; j++)
+			res_mat(i, j) = mat[j][i];
 	return res_mat;
 }

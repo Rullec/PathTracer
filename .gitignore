@@ -1,5 +1,6 @@
 include
 lib
+model/
 build
 PathTracer
 .DS_Store

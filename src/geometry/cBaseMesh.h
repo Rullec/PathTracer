@@ -20,7 +20,6 @@ struct tLine {
 	tVector mColor;
 };
 
-
 /// Mesh Utilities
 #include <iostream>
 struct tVertex {
@@ -136,7 +135,6 @@ protected:
 	int mEdgeNum;
 	bool mEdgeListExist;
 	std::vector<tEdge *> mEdgeList;
-
 
 	void ReadEdgeList(const std::string & path);
 	void WriteEdgeList(const std::string & path);

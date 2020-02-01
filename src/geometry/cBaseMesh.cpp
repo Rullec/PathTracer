@@ -96,7 +96,9 @@ void cBaseMesh::Clear()
 //----------------------cObjMesh------------------------
 cObjMesh::cObjMesh(const std::string &filename) :cBaseMesh(eMeshType::OBJ, filename)
 {
-
+	mEdgeNum = 0;
+	mEdgeListExist = false;
+	mEdgeList.clear();
 }
 
 cObjMesh::~cObjMesh()
@@ -181,17 +183,12 @@ void cObjMesh::BuildEdgeList()
 	
 }
 
+#include <util/cJsonUtil.hpp>
 void cObjMesh::ReadEdgeList(const std::string & path)
 {
 	Json::Value root;
-	std::ifstream fin(path);
-	if (true == fin.fail())
-	{
-		std::cout << "[error] cObjMesh::ReadEdgeList: load " << path << " failed\n";
-		exit(1);
-	}
-	Json::Reader reader;
-	reader.parse(fin, root);
+	cJsonUtil::ParseJson(path, root);
+	
 	int edge_num = root["EdgeNum"].asInt();
 	int face_num = root["FaceNum"].asInt();
 	assert(face_num == mFaceNum);

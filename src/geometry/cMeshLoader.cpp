@@ -78,13 +78,14 @@ std::shared_ptr<cObjMesh> cMeshLoader::LoadObj(const std::string & name)
 				 tinyobj::real_t red = attrib.colors[3*idx.vertex_index+0];
 				 tinyobj::real_t green = attrib.colors[3*idx.vertex_index+1];
 				 tinyobj::real_t blue = attrib.colors[3*idx.vertex_index+2];
-				 
+				//  std::cout <<"color = " << red << green << blue << std::endl;
 				 
 				 // set vertex info
 				 tVertex * cur_v = new tVertex();
 				 cur_v->mVertexId = idx.vertex_index;
 				 cur_v->mPos = tVector(vx, vy, vz, 1);
 				 cur_v->mNormal = tVector(nx, ny, nz, 0);
+				 cur_v->mColor = tVector(red, green, blue, 1);
 				 obj_->AddVertex(cur_v);
 
 				 // set face info

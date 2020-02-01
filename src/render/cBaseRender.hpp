@@ -4,7 +4,7 @@
 #include <GLFW/glfw3.h>
 #include <util/cMathUtil.hpp>
 #include <geometry/cBaseMesh.h>
-#include <render/cFocusCamera.h>
+#include "camera/cArcballCamera.hpp"
 
 #define MAX_PIXEL_NUM (1920 * 1080)
 #define MAX_LINE_NUM (1000000)
@@ -39,7 +39,7 @@ public:
 	void AddFace(tVertex ** tPixel_lst);
 	void AddPolygon(const tPolygon & face);
 
-	void SetCamera(std::shared_ptr<cFocusCamera> & camera);
+	void SetCamera(std::shared_ptr<cBaseCamera> & camera);
 
 protected:
 
@@ -49,7 +49,7 @@ protected:
 	std::string mVertexShaderPath, mFragmentShaderPath;
 	unsigned int mShaderProgram;
 	enum eRenderStatus mRenderStatus;
-	std::shared_ptr<cFocusCamera> mCamera;
+	std::shared_ptr<cBaseCamera> mCamera;
 
 	GLuint mPointsVAO, mPointsVBO;
 	GLuint mLinesVAO, mLinesVBO;

@@ -1,25 +1,13 @@
 #include "cBaseRender.hpp"
 #include "cPolyRender.hpp"
-#include <json/json.h>
+#include <util/cJsonUtil.hpp>
 #include <fstream>
 #include <iostream>
 
 void BuildRender(const std::string & conf, std::shared_ptr<cBaseRender> & render_)
 {
-	std::ifstream fin(conf.c_str());
-	if (fin.fail() == true)
-	{
-		std::cout << "[error] BuildRender: load " << conf << " failed" << std::endl;
-		exit(1);
-	}
-	Json::Reader reader;
 	Json::Value root;
-	if (false == reader.parse(fin, root))
-	{
-		std::cout << "[error] BuildRender: load json succ, failed to parse: " << conf << std::endl;
-		exit(1);
-	}
-	fin.close();
+	cJsonUtil::ParseJson(conf, root);
 
 	// render info
 	Json::Value render_info = root["Render"];

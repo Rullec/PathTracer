@@ -2,7 +2,6 @@
 #include <scene/BuildScene.hpp>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
-#include <json/json.h>
 #include <fstream>
 
 int gWindowWidth = 800;
@@ -120,29 +119,16 @@ void InitGLFW()
 
 void ParseConfig(const std::string & conf)
 {
-	std::ifstream fin(conf.c_str());
-	if (fin.fail() == true)
-	{
-		std::cout << "[error] Init: load " << conf << " failed" << std::endl;
-		exit(1);
-	}
-	Json::Reader reader;
 	Json::Value root;
-	if (false == reader.parse(fin, root))
-	{
-		std::cout << "[error] Init: load json succ, failed to parse: " << conf << std::endl;
-		exit(1);
-	}
+	cJsonUtil::ParseJson(conf, root);
 
 	// MainWindowInfo request
 	Json::Value mainwindow_info = root["MainWindowInfo"];
-	
 	gStartX = mainwindow_info["StartX"].asInt();
 	gStartY = mainwindow_info["StartY"].asInt();
 	gWindowWidth = mainwindow_info["Width"].asInt();
 	gWindowHeight = mainwindow_info["Height"].asInt();
 	gWindowName = mainwindow_info["WindowName"].asString();
-	fin.close();
 }
 
 void ResizeCallback(GLFWwindow* window, int w, int h)

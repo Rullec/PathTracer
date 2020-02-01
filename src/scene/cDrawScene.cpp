@@ -1,11 +1,13 @@
 #include "cDrawScene.hpp"
 #include <render/BuildRender.hpp>
+#include <render/camera/BuildCamera.hpp>
 #include <cstring>
 #ifdef WIN32
 #include <Windows.h>
 #endif
 #include <ctime>
 #include <iostream>
+
 extern GLFWwindow * gWindow;
 
 // test
@@ -13,12 +15,7 @@ extern GLFWwindow * gWindow;
 cDrawScene::cDrawScene(const std::string & config):cScene()
 {
 	// init value
-	mCurFrame = 0;
 	mDataReload = true;
-	glfwGetFramebufferSize(gWindow, &mCurFrameWidth, &mCurFrameHeight);
-	mCameraActive = false;
-	mCursorLastX = std::nan("");
-	mCursorLastY = std::nan("");
 
 	// build render
 	BuildRender(config, mRender);
@@ -29,7 +26,7 @@ cDrawScene::cDrawScene(const std::string & config):cScene()
 	}
 
 	// build camera, set camera
-	mCamera = std::make_shared<cFocusCamera>(this->mCurFrameWidth, this->mCurFrameHeight);
+	mCamera = BuildCamera(config);
 	mRender->SetCamera(mCamera);
 }
 
@@ -82,10 +79,7 @@ void cDrawScene::ParseConfig(const std::string & conf)
 
 void cDrawScene::DrawScene()
 {
-	for (auto & face : mFaces)
-	{
-		mRender->AddPolygon(face);
-	}
+
 }
 
 void cDrawScene::DrawAxis()
@@ -116,43 +110,35 @@ void cDrawScene::DrawAxis()
 
 void cDrawScene::KeyEvent(int key, int scancode, int action, int mods)
 {
+	mCamera->KeyEvent(key, scancode, action, mods);
 	//mPicker->KeyEvent(key, scancode, action, mods);
 }
 
 void cDrawScene::MouseMoveEvent(double xpos, double ypos)
 {
-	if (std::isnan(mCursorLastX) == true)
-	{
-		mCursorLastX = xpos;
-		mCursorLastY = ypos;
-		return;
-	}
-
-	if (mCameraActive)
-	{
-		tVector move_vec = tVector(xpos, ypos, 0, 1) - tVector(mCursorLastX, mCursorLastY, 0, 1);
-		mCamera->Rotate(move_vec);
-	}
-
-	mCursorLastX = xpos;
-	mCursorLastY = ypos;
+	mCamera->MouseMoveEvent(xpos, ypos);
 }
 
 void cDrawScene::MouseButtonEvent(int button, int action, int mods)
 {
-	if (button == GLFW_MOUSE_BUTTON_LEFT)
-	{
-		if (action == GLFW_PRESS) mCameraActive = true;
-		else
-		{
-			mCameraActive = false;
-			mCursorLastY = mCursorLastX = std::nan("");
-		}
-	}
+	mCamera->MouseButtonEvent(button, action, mods);
 }
 
 void cDrawScene::ScrollEvent(double offset)
 {
-	mCamera->Scroll(offset);
-	//mDataReload = true;
+	mCamera->ScrollEvent(offset);
+}
+
+bool cDrawScene::AddObjToScene(std::shared_ptr<cBaseMesh> obj)
+{
+	std::cout << "[debug] cDrawScene Add obj" << std::endl;
+
+	if(obj == nullptr) return false;
+	const std::vector<tFace * > & faces = obj->GetFaceList();
+	for(auto & face : faces)
+	{
+		mRender->AddFace(face->mVertexPtrList);
+	}
+	
+	return true;
 }

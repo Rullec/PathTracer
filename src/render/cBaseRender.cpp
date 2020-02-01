@@ -1,15 +1,15 @@
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
 #include "cBaseRender.hpp"
-#include "cBaseShader.hpp"
-#include <json/json.h>
+#include "./shader/cBaseShader.hpp"
+#include <util/cJsonUtil.hpp>
 #include <fstream>
 
 cBaseRender::cBaseRender(const std::string & a_): mConfPath(a_)
 {
 	// load value
-	std::ifstream fin(mConfPath);
 	Json::Value root;
-	Json::Reader reader;
-	reader.parse(fin, root);
+	cJsonUtil::ParseJson(mConfPath, root);
 
 	Json::Value render = root["Render"];
 	for (int i = 0; i < mClearColor.size(); i++) 
@@ -85,6 +85,7 @@ void cBaseRender::InitShader()
 	{
 		glGetProgramInfoLog(mShaderProgram, logsize + 1, NULL, infoLog);
 		std::cout << "[cBaseRender] Shaders Link Error: \n" << infoLog << std::endl;
+		exit(1);
 	}
 
 	// delete shaders after linking
@@ -175,7 +176,7 @@ void cBaseRender::AddLine(const tLine & line)
 	mLineBuffer[st + 6] = static_cast<float>(line.mColor[3]);
 }
 
-void cBaseRender::SetCamera(std::shared_ptr<cFocusCamera>& camera)
+void cBaseRender::SetCamera(std::shared_ptr<cBaseCamera>& camera)
 {
 	mCamera = camera;
 }
@@ -311,7 +312,7 @@ void cBaseRender::UpdateCamera()
 {
 	//std::cout << "[debug] cBaseRender::UpdateCamera \n";
 	tMatrix res = mCamera->GetRenderMat();
-	//res = tMatrix::Identity();
+	// std::cout <<"res = " << res << std::endl;
 	SetMatrix("MVP", res);
 }
 
@@ -342,6 +343,6 @@ void cBaseRender::SetMatrix(const std::string name, const tMatrix & mat) const
 		std::cout << "[error] cBaseRender::SetMatrix failed" << std::endl;
 		exit(1);
 	}
-	Eigen::Matrix4f res = mat.cast<float>();
+	Eigen::Matrix4f res = mat.transpose().cast<float>();
 	glUniformMatrix4fv(pos, 1, GL_TRUE, res.data());
 }
