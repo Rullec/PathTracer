@@ -1,8 +1,15 @@
 cmake_minimum_required(VERSION 2.8)
 project(PathTracer CXX)
 set (CMAKE_CXX_STANDARD 11)
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ADDITIONAL_CFLAGS} -g")
-set(CMAKE_BUILD_TYPE "Release")
+# set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ADDITIONAL_CFLAGS} -g")
+# set(CMAKE_BUILD_TYPE "Release")
+# set(CMAKE_BUILD_TYPE "Debug")
+
+set( CMAKE_CXX_FLAGS "-O0 -g" )
+message("CMAKE_CXX_FLAGS is ${CMAKE_CXX_FLAGS}")
+
+# message("CMAKE_CXX_FLAGS_DEBUG is ${CMAKE_CXX_FLAGS_DEBUG}")
+# message("CMAKE_CXX_FLAGS_RELEASE is ${CMAKE_CXX_FLAGS_RELEASE}")
 
 find_package(PkgConfig REQUIRED)
 pkg_search_module(GLFW REQUIRED glfw3)

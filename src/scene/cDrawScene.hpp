@@ -24,6 +24,7 @@ private:
 
 	// rendering info
 	void DrawAxis();
+	void DrawGround();
 	void ParseConfig(const std::string & conf);
 
 protected:

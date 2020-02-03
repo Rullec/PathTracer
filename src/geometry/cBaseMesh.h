@@ -5,6 +5,7 @@
 
 enum eMeshType {
 	OBJ = 0,
+	NUM_MESH_TYPE
 };
 
 struct tPixel {
@@ -26,17 +27,19 @@ struct tVertex {
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 	int mVertexId;
 	tVector mPos, mNormal, mColor;
+	Eigen::Vector2d mTexCoord;
 	tVertex() {
 		mVertexId = -1;
 		mNormal = tVector::Zero();
 		mPos = tVector::Zero();
 		mUserPtr = nullptr;
+		mTexCoord = Eigen::Vector2d::Zero();
 	}
 	~tVertex()
 	{
 		//if (mVertexId != -1)std::cout << "Vertex " << mVertexId << " release\n";
 	}
-	static const int size = 7;
+	static const int size = 9;
 
 	// attachment info for Z buffer algorithm
 	void * mUserPtr;
@@ -84,6 +87,7 @@ struct tFace {
 	void * mUserPtr;
 };
 
+// for an polygin which did not come from a mesh struture
 struct tPolygon {
 	std::vector<tVector> mVertexLst;
 	tPolygon()
@@ -108,17 +112,20 @@ public:
 	virtual int GetVertexNum();
 	virtual int GetFaceNum();
 	tVector GetCenter();
-
+	eMeshType GetType();
+	
 	// print method
-	void PrintInfo();
-
+	virtual void PrintInfo();
+	void GetBound(tVector & upper, tVector & lower);
+	
 protected:
 	const eMeshType mMeshType;			// which type it belongs to?
 	const std::string mMeshPath;
 	int mFaceNum, mVertexNum;	// face cnt, vertices cnt
 	std::vector<tFace *> mFaceList;
 	std::vector<tVertex *> mVertexList;
-	
+	tVector mUpperBound, mLowerBound;	// upper & lower bound for bouding box of this mesh
+
 	tVector mCenterPos;					// the shape center of this 3D mesh
 	void Clear();
 };
@@ -126,16 +133,24 @@ protected:
 class cObjMesh :public cBaseMesh {
 public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+
 	cObjMesh(const std::string & filename);
 	~cObjMesh();
 	std::vector<tEdge *> GetEdgeList();
 	void BuildEdgeList();
-
+	void GetTexture(unsigned char * &, int &w, int &h);
+	void SetTexture(unsigned char *, int w, int h);
+	
+	virtual void PrintInfo() override ;
 protected:
+
 	int mEdgeNum;
 	bool mEdgeListExist;
 	std::vector<tEdge *> mEdgeList;
 
+	int mTexWidth, mTexHeight;
+	unsigned char * mTexturePtr;
+	
 	void ReadEdgeList(const std::string & path);
 	void WriteEdgeList(const std::string & path);
 };

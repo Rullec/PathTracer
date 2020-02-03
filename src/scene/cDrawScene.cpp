@@ -11,7 +11,6 @@
 extern GLFWwindow * gWindow;
 
 // test
-#include <geometry/cMeshLoader.h>
 cDrawScene::cDrawScene(const std::string & config):cScene()
 {
 	// init value
@@ -131,14 +130,16 @@ void cDrawScene::ScrollEvent(double offset)
 
 bool cDrawScene::AddObjToScene(std::shared_ptr<cBaseMesh> obj)
 {
-	std::cout << "[debug] cDrawScene Add obj" << std::endl;
-
+	// std::cout << "[debug] cDrawScene Add obj" << std::endl;
 	if(obj == nullptr) return false;
-	const std::vector<tFace * > & faces = obj->GetFaceList();
-	for(auto & face : faces)
-	{
-		mRender->AddFace(face->mVertexPtrList);
-	}
+
+	mRender->AddMesh(obj);
+
+	// const std::vector<tFace * > & faces = obj->GetFaceList();
+	// for(auto & face : faces)
+	// {
+	// 	mRender->AddFace(face->mVertexPtrList);
+	// }
 	
 	return true;
 }

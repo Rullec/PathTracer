@@ -1,6 +1,6 @@
 #include "cBaseMesh.h"
+#include <util/cJsonUtil.hpp>
 #include <iostream>
-#include <json/json.h>
 #include <fstream>
 
 //---------------------cBaseMesh------------------------
@@ -11,6 +11,9 @@ cBaseMesh::cBaseMesh(const eMeshType type, const std::string & filename):mMeshTy
 	mFaceList.clear();
 	mVertexList.clear();
 	mCenterPos = tVector::Zero();
+
+	mUpperBound = std::numeric_limits<double>::min() * tVector::Ones();
+	mLowerBound = std::numeric_limits<double>::max() * tVector::Ones();
 }
 
 cBaseMesh::~cBaseMesh()
@@ -51,9 +54,34 @@ void cBaseMesh::AddVertex(tVertex *v_)
 		mVertexNum++;
 	}
 
-	mVertexList[v_->mVertexId] = v_;
+	if(mVertexList[v_->mVertexId] != nullptr)
+	{
+		return;
+		// auto new_v = v_, old_v = mVertexList[v_->mVertexId];
+		// std::cout << "new v pos = " << new_v->mPos.transpose() << std::endl;
+		// std::cout << "old v pos = " << old_v->mPos.transpose() << std::endl;
+		// std::cout << "new v color = " << new_v->mColor.transpose() << std::endl;
+		// std::cout << "old v color = " << new_v->mColor.transpose() << std::endl;
+		// std::cout << "new v tex = " << new_v->mTexCoord.transpose() << std::endl;
+		// std::cout << "old v tex = " << new_v->mTexCoord.transpose() << std::endl;
+		// std::cout <<"--------------------\n";
+		
+	}
+	else
+	{
+		mVertexList[v_->mVertexId] = v_;
 
-	mCenterPos = (mCenterPos * (mVertexNum - 1) + v_->mPos) / mVertexNum;
+		mCenterPos = (mCenterPos * (mVertexNum - 1) + v_->mPos) / mVertexNum;
+
+		// expand the bounding box
+		for(int i=0; i<3; i++)
+		{
+			if(v_->mPos[i] > mUpperBound[i]) mUpperBound[i] = v_->mPos[i];
+			if(v_->mPos[i] < mLowerBound[i]) mLowerBound[i] = v_->mPos[i];
+		}
+	}
+	
+
 }
 
 std::vector<tVertex *> & cBaseMesh::GetVertexList()
@@ -81,9 +109,21 @@ tVector cBaseMesh::GetCenter()
 	return mCenterPos;
 }
 
+eMeshType cBaseMesh::GetType()
+{
+	return mMeshType;
+}
+
 void cBaseMesh::PrintInfo()
 {
 	printf("[log] obj mesh includes %d faces and %d vertices\n", mFaceNum, mVertexNum);
+}
+
+
+void cBaseMesh::GetBound(tVector & upper, tVector & lower)
+{
+	upper = mUpperBound;
+	lower = mLowerBound;
 }
 
 void cBaseMesh::Clear()
@@ -99,6 +139,7 @@ cObjMesh::cObjMesh(const std::string &filename) :cBaseMesh(eMeshType::OBJ, filen
 	mEdgeNum = 0;
 	mEdgeListExist = false;
 	mEdgeList.clear();
+	mTexturePtr = nullptr;
 }
 
 cObjMesh::~cObjMesh()
@@ -171,19 +212,18 @@ void cObjMesh::BuildEdgeList()
 
 		// write to file
 		WriteEdgeList(edge_record);
-		std::cout << "[log] cObjMesh::BuildEdgeList: build edge table succ, write to " << edge_record << std::endl;
+		// std::cout << "[log] cObjMesh::BuildEdgeList: build edge table succ, write to " << edge_record << std::endl;
 	}
 	else
 	{
 		ReadEdgeList(edge_record);
-		std::cout << "[log] cObjMesh::BuildEdgeList: load edge table from " << edge_record << std::endl;
+		// std::cout << "[log] cObjMesh::BuildEdgeList: load edge table from " << edge_record << std::endl;
 	}
 
-	std::cout << "[log] edge num in mesh = " << mEdgeNum << std::endl;
+	// std::cout << "[log] edge num in mesh = " << mEdgeNum << std::endl;
 	
 }
 
-#include <util/cJsonUtil.hpp>
 void cObjMesh::ReadEdgeList(const std::string & path)
 {
 	Json::Value root;
@@ -263,4 +303,27 @@ void cObjMesh::WriteEdgeList(const std::string & path)
 	}
 	root["FaceList"] = face_info;
 	fout << root << std::endl;
+}
+
+void cObjMesh::GetTexture(unsigned char * &tex, int & width, int & height)
+{
+	tex = mTexturePtr;
+	width = mTexWidth;
+	height = mTexHeight;
+	// std::cout <<"[debug] cObjMesh::getTex = " << (tex == nullptr) << std::endl;
+}
+
+void cObjMesh::SetTexture(unsigned char * tex, int width, int height)
+{
+	mTexWidth = width;
+	mTexHeight = height;
+	mTexturePtr = tex;
+}
+
+void cObjMesh::PrintInfo()
+{
+	cBaseMesh::PrintInfo();
+	std::cout <<"[log] and the texture is ";
+	if(mTexturePtr != nullptr) std::cout << "available\n";
+	else std::cout <<"unavailable\n";
 }

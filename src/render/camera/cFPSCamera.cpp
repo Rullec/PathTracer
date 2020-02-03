@@ -7,7 +7,7 @@
 
 cFPSCamera::cFPSCamera(const std::string & conf) : cBaseCamera(conf)
 {
-    std::cout <<"FPS camera constructed \n"; 
+    // std::cout <<"FPS camera constructed \n"; 
     ParseConf(conf);
     // std::cout << "pos = " << mCameraPos.transpose( ) << std::endl;
     // std::cout << "front = " << mCameraFront.transpose( ) << std::endl;
@@ -112,7 +112,7 @@ void cFPSCamera::KeyEvent(int key, int scancode, int action, int mods)
         case GLFW_KEY_SPACE:
             mCameraPos += mCameraUp * move_vel;
             break;
-        case GLFW_KEY_LEFT_CONTROL:
+        case GLFW_KEY_Z:
             mCameraPos -= mCameraUp * move_vel;
         default:
             break;
@@ -125,5 +125,5 @@ void cFPSCamera::KeyEvent(int key, int scancode, int action, int mods)
 
 void cFPSCamera::ScrollEvent(double offset)
 {
-    std::cout <<"[debug] fps scroll  " << std::endl;
+    // std::cout <<"[debug] fps scroll  " << std::endl;
 }

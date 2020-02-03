@@ -22,7 +22,7 @@ std::shared_ptr<cBaseCamera> BuildCamera(const std::string & conf)
         if(type_str != gStrCameraType[i]) continue;
 
         eCameraType type = static_cast<eCameraType>(i);
-        switch (i)
+        switch (type)
         {
         case eCameraType::ARCBALL:
             camera = std::shared_ptr<cArcballCamera>(new cArcballCamera(conf));

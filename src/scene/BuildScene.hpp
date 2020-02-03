@@ -26,7 +26,7 @@ std::shared_ptr<cScene> BuildScene(std::string path)
 
 	std::shared_ptr<cScene> scene = nullptr;
 	std::string scene_type = root["Scene"]["Type"].asString();
-	std::cout <<"[<debug] scene type = " << scene_type<<std::endl;
+	std::cout <<"[debug] scene type = " << scene_type<<std::endl;
 	for(int i=0; i<eSceneType::NUM_SCENE_TYPE; i++)
 	{
 		if(gStrSceneType[i] == scene_type)

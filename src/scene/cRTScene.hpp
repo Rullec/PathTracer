@@ -7,6 +7,7 @@ public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
     struct tParams{
         std::string mModelName;
+        double mModelScale;
         tParams();
     };
 
@@ -20,6 +21,6 @@ protected:
     std::shared_ptr<cBaseMesh> mModel;
 
     // tool methods
-    void LoadModel(const std::string & model_name);
+    void LoadModel(const std::string & model_name,  double scale);
     virtual void DrawScene() override final;
 };

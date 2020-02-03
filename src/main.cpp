@@ -24,9 +24,15 @@ void ResizeCallback(GLFWwindow* window, int w, int h);
 void ScrollCallback(GLFWwindow* window, double xoff, double yoff);
 
 #include <algorithm>
-int main()
+#include <unistd.h>
+int main(int argc, char*   argv[])
 {
-	std::string conf = "config/path.conf";
+	assert(argc == 2);
+	std::string conf = std::string(argv[1]);
+
+ 	char cCurrentPath[FILENAME_MAX];
+	getcwd(cCurrentPath, sizeof(cCurrentPath));
+	std::cout <<"debug begin to parse " << conf << " " << cCurrentPath << std::endl;
 	ParseConfig(conf);
 	InitGLFW();
 	InitGL();
@@ -120,7 +126,11 @@ void InitGLFW()
 void ParseConfig(const std::string & conf)
 {
 	Json::Value root;
-	cJsonUtil::ParseJson(conf, root);
+	if(false == cJsonUtil::ParseJson(conf, root))
+	{
+		std::cout <<"[error] main.cpp: ParseConfig parse " << conf <<" failed\n";
+		exit(1);
+	}
 
 	// MainWindowInfo request
 	Json::Value mainwindow_info = root["MainWindowInfo"];

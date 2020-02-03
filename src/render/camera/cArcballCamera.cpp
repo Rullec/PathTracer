@@ -3,6 +3,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <util/cGlmUtil.hpp>
 #include <util/cJsonUtil.hpp>
+#include <GLFW/glfw3.h>
 // #include <glm/gtx/string_cast.hpp>
 
 cArcballCamera::cArcballCamera(const std::string & conf) : cBaseCamera(conf)
@@ -100,7 +101,22 @@ void cArcballCamera::SetFocus(const tVector & focus)
 
 void cArcballCamera::KeyEvent(int key, int scancode, int action, int mods)
 {
-
+	if(action == GLFW_PRESS || action == GLFW_REPEAT)
+	{
+		double move_vel = 1e-3;
+		switch (key)
+		{
+		case GLFW_KEY_W:
+			mCameraPos += 0.1 * (mCameraFocus - mCameraPos);
+			break;
+		case GLFW_KEY_S:
+			mCameraPos -= 0.1 * (mCameraFocus - mCameraPos);
+			break;
+		default:
+			break;
+		}
+		Reload();
+	}
 }
 
 void cArcballCamera::MouseMoveEvent(double xpos, double ypos)
