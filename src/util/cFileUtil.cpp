@@ -129,6 +129,19 @@ std::string cFileUtil::GetFilename(const std::string& path)
 	return filename;
 }
 
+
+std::string cFileUtil::GetDirname(const std::string & path)
+{
+	int found;
+  	found = path.find_last_of("/\\");
+	if(std::string::npos == found)
+	{
+		std::cout << "cFilUtil::GetDirname for " << path <<"failed\n";
+		exit(1);
+	}
+	return path.substr(0,found);
+}
+
 void cFileUtil::FilterFilesByExtension(std::vector<std::string>& files, const std::string& ext)
 {
 	size_t i = 0;

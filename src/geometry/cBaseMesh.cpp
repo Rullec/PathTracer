@@ -139,6 +139,7 @@ cObjMesh::cObjMesh(const std::string &filename) :cBaseMesh(eMeshType::OBJ, filen
 	mEdgeNum = 0;
 	mEdgeListExist = false;
 	mEdgeList.clear();
+	mMaterialList.clear();
 	mTexturePtr = nullptr;
 }
 
@@ -326,4 +327,20 @@ void cObjMesh::PrintInfo()
 	std::cout <<"[log] and the texture is ";
 	if(mTexturePtr != nullptr) std::cout << "available\n";
 	else std::cout <<"unavailable\n";
+}
+
+void cObjMesh::AddMaterial(tMaterial * m)
+{
+	mMaterialList.push_back(m);
+}
+
+
+tMaterial * cObjMesh::GetMaterial(int id)
+{
+	if(id >= mMaterialList.size() || id < 0)
+	{
+		std::cout <<"[error] cObjMesh::GetMaterial exceed size " << id << std::endl;
+		exit(1);
+	}
+	return mMaterialList[id];
 }

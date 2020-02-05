@@ -551,7 +551,17 @@ void cBaseRender::AddMesh(std::shared_ptr<cBaseMesh> &mesh)
 			// std::cout <<"[log] cBaseRender::AddMesh obj mesh has no texture\n";
 			std::vector<tFace * > face_lst = mesh->GetFaceList();
 			for (auto & x : face_lst)
+			{
+				if(x->mMaterialId != -1)
+				{
+					tMaterial * mat = obj_mesh->GetMaterial(x->mMaterialId);
+					for(int i=0; i<NUM_VERTEX_PER_FACE; i++)
+					{
+						x->mVertexPtrList[i]->mColor = mat->diffuse;
+					}
+				}
 				AddFace(x->mVertexPtrList);
+			}
 		}
 		else
 		{

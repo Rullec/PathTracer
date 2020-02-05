@@ -39,10 +39,9 @@ void cFPSCamera::Reload()
 
     // calculate projection 
     {
-        float fov = 45.0;
         // glm::mat4 projection = glm::perspective(glm::radians(fov), 800.0f / 600.0f, 0.1f, 100.0f); 
         // mProjTrans = cGlmUtil::GlmMatixTotMatrix(projection);
-        glm::mat4 projection = glm::perspective(glm::radians(fov), mWindowWidth / mWindowHeight, 0.1f, 100.0f); 
+        glm::mat4 projection = glm::perspective(glm::radians(mFOV), mWindowWidth / mWindowHeight, 0.1f, static_cast<float>(1e4)); 
         mProjTrans = cGlmUtil::GlmMatixTotMatrix(projection);
     }
     // mProjTrans = tMatrix::Identity();

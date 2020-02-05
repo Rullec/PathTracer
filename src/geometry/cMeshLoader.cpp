@@ -40,10 +40,44 @@ std::shared_ptr<cObjMesh> cMeshLoader::LoadObj(const std::string & name, double 
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
 	std::vector<tinyobj::material_t> materials;
-	if (false == tinyobj::LoadObj(&attrib, &shapes, &materials, nullptr, nullptr, name.c_str()))
+	if (false == tinyobj::LoadObj(&attrib, &shapes, &materials, nullptr, nullptr, name.c_str(), cFileUtil::GetDirname(name).c_str())) //, "./model/cbox"
 	{
 		std::cout << "[error] cMeshLoader::LoadObj " << name << " failed " << std::endl;
 		exit(1);
+	}
+
+	std::cout <<"[debug] material size = " << materials.size() << std::endl; 
+	auto Array3TotVector = [](float * ptr)
+	{
+		return tVector(ptr[0], ptr[1], ptr[2], 0);
+	};
+	for(auto & x : materials)
+	{
+		// std::cout <<"[debug] add material " << x.name << std::endl;
+		tVector diffuse = Array3TotVector(x.diffuse),
+			ambient = Array3TotVector(x.ambient),
+			specular = Array3TotVector (x.specular),
+			transmittance = Array3TotVector(x.transmittance);
+		double ior = x.ior,
+			shininess = x.shininess,
+			illum = x.illum;
+
+		tMaterial * material = new tMaterial();
+		material->diffuse = diffuse;
+		material->ambient = ambient;
+		material->specular = specular;
+		material->transmittance = transmittance;
+		material->ior = ior;
+		material->shininess = shininess;
+		material->illum = illum;
+		// std::cout <<"diffuse = " << diffuse.transpose() << std::endl;
+		// std::cout <<"ambient = " << ambient.transpose() << std::endl;
+		// std::cout <<"specular = " << specular.transpose() << std::endl;
+		// std::cout <<"transmittance Tf = " << transmittance.transpose() << std::endl;
+		// std::cout <<"ior Ni = " << ior << std::endl;
+		// std::cout <<"shininess Ns = " << shininess << std::endl;
+		// std::cout <<"illum = " << illum << std::endl;
+		obj_->AddMaterial(material);
 	}
 
 	size_t face_id_before = 0;
@@ -55,6 +89,8 @@ std::shared_ptr<cObjMesh> cMeshLoader::LoadObj(const std::string & name, double 
 		size_t index_offset = 0;
 		for (size_t face_id = 0; face_id < shapes[shape_id].mesh.num_face_vertices.size(); face_id++) 
 		{
+			// if(face_id % 1000 == 0)
+			// 	std::cout << "materil id = " << shapes[shape_id].mesh.material_ids[face_id] << std::endl;
 			int fv = shapes[shape_id].mesh.num_face_vertices[face_id];
 			if (NUM_VERTEX_PER_FACE != fv)
 			{
@@ -64,6 +100,7 @@ std::shared_ptr<cObjMesh> cMeshLoader::LoadObj(const std::string & name, double 
 
 			tFace *cur_face = new tFace();
 			cur_face->mFaceId = face_id_before + face_id;
+			cur_face->mMaterialId = shapes[shape_id].mesh.material_ids[face_id]; // make the material id count from 0
 			obj_->AddFace(cur_face);
 
 			// Loop over vertices in the face.

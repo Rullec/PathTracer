@@ -67,7 +67,7 @@ void cBaseCamera::ParseConf(const std::string & conf)
 		mCameraRestUp[i] = camera_info["CameraUp"][i].asDouble();
 		mCameraRestFront[i] = camera_info["CameraFront"][i].asDouble();
 	}
-
+	mFOV = camera_info["CameraFov"].asDouble();
 	// std::cout <<"[debug] camera pos = " << mCameraRestPos.transpose() << std::endl;
 	// std::cout <<"[debug] camera front = " << mCameraRestFront.transpose() << std::endl;
 	// std::cout <<"[debug] camera up = " << mCameraRestUp.transpose() << std::endl;

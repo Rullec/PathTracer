@@ -19,6 +19,7 @@ public:
 	static long int GetFileSize(const std::string& filename);
 	static std::string GetExtension(const std::string& filename);
 	static std::string GetFilename(const std::string& path);
+	static std::string GetDirname(const std::string & path);
 	static void FilterFilesByExtension(std::vector<std::string>& files, const std::string& ext);
 	static bool ExistsFile(const std::string& file_name);
 

@@ -52,33 +52,11 @@ void cArcballCamera::Reload()
 			mViewTrans = cGlmUtil::GlmMatixTotMatrix(view);
 		}
 
-		// 自行计算view trans
-		// {
-		// 	tVector X = mCameraUp.cross3(-mCameraFront) / (mCameraUp.cross3(-mCameraFront).norm());
-		// 	tVector Z = -mCameraFront;
-		// 	tVector Y = X.cross3(mCameraFront);
-		// 	tMatrix Right = tMatrix::Identity();
-		// 	Right.block(0, 0, 1, 3) = X.segment(0, 3).transpose();
-		// 	Right.block(1, 0, 1, 3) = Y.segment(0, 3).transpose();
-		// 	Right.block(2, 0, 1, 3) = Z.segment(0, 3).transpose();
-	
-		// 	Right.block(0, 3, 4, 1) = Right * (-mCameraPos);
-		// 	Right(3, 3) = 1;
-		// 	// std::cout <<"glm view mat = \n " << mViewTrans << std::endl;
-		// 	// std::cout <<"self view mat = \n " << Right << std::endl;
-		// 	mViewTrans = Right;
-			
-		// 	// std::cout <<"X = " << X.transpose() << std::endl;
-		// 	// std::cout <<"Y = " << Y.transpose() << std::endl;
-		// 	// std::cout <<"Z = " << Z.transpose() << std::endl;
-		// 	// std::cout <<"View trans = \n " << Right << std::endl;
-		// }
 	}
 
 	// 2. Project transform
 	{
-		float fov = 45.0;
-        glm::mat4 projection = glm::perspective(glm::radians(fov), mWindowWidth / mWindowHeight, 0.1f, 100.0f); 
+        glm::mat4 projection = glm::perspective(glm::radians(mFOV), mWindowWidth / mWindowHeight, 0.1f, static_cast<float>(1e4)); 
         mProjTrans = cGlmUtil::GlmMatixTotMatrix(projection);
 	}
 

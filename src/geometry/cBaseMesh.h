@@ -66,6 +66,7 @@ struct tEdge {
 
 struct tFace {
 	int mFaceId;
+	int mMaterialId;
 	int mVertexIdList[NUM_VERTEX_PER_FACE];
 	int mEdgeIdList[NUM_EDGE_PER_FACE];
 	tVertex * mVertexPtrList[NUM_VERTEX_PER_FACE];
@@ -75,11 +76,12 @@ struct tFace {
 
 	tFace() {
 		mFaceId = -1;
+		mMaterialId = -1;
 		memset(mVertexIdList, 0, sizeof(mVertexIdList));
 		memset(mEdgeIdList, 0, sizeof(mEdgeIdList));
 		memset(mVertexPtrList, 0, sizeof(mVertexPtrList));
 		memset(mEdgePtrList, 0, sizeof(mEdgePtrList));
-
+		
 		mUserPtr = nullptr;
 	}
 
@@ -93,6 +95,26 @@ struct tPolygon {
 	tPolygon()
 	{
 		mVertexLst.clear();
+	}
+};
+
+struct tMaterial{
+	std::string mName;
+/*
+			std::cout <<"diffuse = " << diffuse.transpose() << std::endl;
+		std::cout <<"ambient = " << ambient.transpose() << std::endl;
+		std::cout <<"specular = " << specular.transpose() << std::endl;
+		std::cout <<"transmittance Tf = " << transmittance.transpose() << std::endl;
+		std::cout <<"ior Ni = " << ior << std::endl;
+		std::cout <<"shininess Ns = " << shininess << std::endl;
+		std::cout <<"illum = " << illum << std::endl;
+*/
+	tVector diffuse, ambient, specular, transmittance;
+	double ior, shininess, illum;
+	tMaterial()
+	{
+		diffuse = ambient = specular = transmittance = tVector::Zero();
+		ior = shininess = illum = 1;
 	}
 };
 
@@ -141,6 +163,8 @@ public:
 	void GetTexture(unsigned char * &, int &w, int &h);
 	void SetTexture(unsigned char *, int w, int h);
 	
+	void AddMaterial(tMaterial *);
+	tMaterial * GetMaterial(int id);
 	virtual void PrintInfo() override ;
 protected:
 
@@ -148,9 +172,14 @@ protected:
 	bool mEdgeListExist;
 	std::vector<tEdge *> mEdgeList;
 
+	// texture 
 	int mTexWidth, mTexHeight;
 	unsigned char * mTexturePtr;
-	
+
+	// material storage
+	std::vector<tMaterial *> mMaterialList;
+
+	// tool methods
 	void ReadEdgeList(const std::string & path);
 	void WriteEdgeList(const std::string & path);
 };
