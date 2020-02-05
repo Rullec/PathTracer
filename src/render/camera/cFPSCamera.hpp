@@ -13,6 +13,7 @@ public:
 
 protected:
     virtual void Reload() override final;
+    virtual void Reset() override final;
     
 private:
     void ParseConf(const std::string & conf);

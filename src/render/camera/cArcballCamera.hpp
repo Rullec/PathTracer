@@ -25,4 +25,5 @@ protected:
 	
 	void Scroll(double offset);
 	virtual void Reload() override final;
+	virtual void Reset() override final;
 };

@@ -1,6 +1,7 @@
 #include "cDrawScene.hpp"
 
 class cBaseMesh;
+class cPathTracer;
 
 class cRTScene: public cDrawScene{
 public:
@@ -13,12 +14,17 @@ public:
 
     cRTScene(const std::string & config);
 
-    void Init() override final;
-    void Update() override final;
+    virtual void Init() override final;
+    virtual void Update() override final;
+	virtual void KeyEvent(int key, int scancode, int action, int mods) override final;
+	virtual void MouseMoveEvent(double xpos, double ypos) override final;
+	virtual void MouseButtonEvent(int button, int action, int mods) override final;
+	virtual void ScrollEvent(double offset) override final;
 
 protected:
     struct tParams mParams;
     std::shared_ptr<cBaseMesh> mModel;
+    std::shared_ptr<cPathTracer> mTracer;
 
     // tool methods
     void LoadModel(const std::string & model_name,  double scale);

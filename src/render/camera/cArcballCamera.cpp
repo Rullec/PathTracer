@@ -19,54 +19,18 @@ cArcballCamera::cArcballCamera(const std::string & conf) : cBaseCamera(conf)
 			Z=-front
 	*/
 	
-	this->mCameraFocus = tVector(0, 0, 0, 1);
-
 	// parse json
 	ParseConfig(conf);
+
+	mCameraFocus = mCameraRestFocus;
+	 
 	Reload();
 }
 
 void cArcballCamera::Reload()
 {
-	// let: camera front is Z, camera up is Y, and ZxY = X
-	// 0. calculates mCameraFront = mCameraFocus - mCameraPos
-	{
-		mCameraFront = (mCameraFocus - mCameraPos).normalized();
-	}
-
-	// 1. Viewpoint coordinate
-	//std::cout << "*************" << std::endl;
-	{
-
-		// std::cout <<"camera pos = " << mCameraPos.transpose() << std::endl;
-		// std::cout <<"camera up = " << mCameraUp.transpose() << std::endl;
-		// std::cout <<"";
-
-		// glm计算view trans
-		{
-			glm::vec3 eye, center, up;
-			eye = cGlmUtil::tVectorToGlmVector3(mCameraPos);
-			center = cGlmUtil::tVectorToGlmVector3(mCameraFocus);
-			up = cGlmUtil::tVectorToGlmVector3(mCameraUp);
-			glm::mat4 view = glm::lookAt(eye, center, up);
-			mViewTrans = cGlmUtil::GlmMatixTotMatrix(view);
-		}
-
-	}
-
-	// 2. Project transform
-	{
-        glm::mat4 projection = glm::perspective(glm::radians(mFOV), mWindowWidth / mWindowHeight, 0.1f, static_cast<float>(1e4)); 
-        mProjTrans = cGlmUtil::GlmMatixTotMatrix(projection);
-	}
-
-	mRenderMat = mProjTrans * mViewTrans;
-	// mRenderTrans = mViewTrans;
-
-	// std::cout <<"1 0 0 = " << (mRenderTrans * tVector(1, 0, 0, 0)).transpose() << std::endl;
-	// std::cout <<"0 1 0 = " << (mRenderTrans * tVector(0, 1, 0, 0)).transpose() << std::endl;
-	// std::cout <<"0 0 1 = " << (mRenderTrans * tVector(0, 0, 1, 0)).transpose() << std::endl;
-	// std::cout << "view mat = " << mViewTrans << std::endl;
+	mCameraFront = (mCameraFocus - mCameraPos).normalized();
+	cBaseCamera::Reload();
 }
 
 void cArcballCamera::SetFocus(const tVector & focus)
@@ -81,7 +45,6 @@ void cArcballCamera::KeyEvent(int key, int scancode, int action, int mods)
 {
 	if(action == GLFW_PRESS || action == GLFW_REPEAT)
 	{
-		double move_vel = 1e-3;
 		switch (key)
 		{
 		case GLFW_KEY_W:
@@ -89,12 +52,14 @@ void cArcballCamera::KeyEvent(int key, int scancode, int action, int mods)
 			break;
 		case GLFW_KEY_S:
 			mCameraPos -= 0.1 * (mCameraFocus - mCameraPos);
+			// std::cout << mCameraPos.transpose() << std::endl;
 			break;
 		default:
 			break;
 		}
-		Reload();
 	}
+
+	cBaseCamera::KeyEvent(key, scancode, action, mods);
 }
 
 void cArcballCamera::MouseMoveEvent(double xpos, double ypos)
@@ -157,8 +122,14 @@ void cArcballCamera::ParseConfig(const std::string & conf)
 {
 	Json::Value root;
 	cJsonUtil::ParseJson(conf, root);
-	mCameraFocus = tVector(0, 0, 0, 1);
+	mCameraRestFocus = tVector(0, 0, 0, 1);
 	for(int i=0; i< 3;i ++)
-		mCameraFocus[i] = root["Camera"]["CameraFocus"][i].asDouble();
-	std::cout <<"[debug] arcball camera focus = " << mCameraFocus.transpose() << std::endl;
+		mCameraRestFocus[i] = root["Camera"]["CameraFocus"][i].asDouble();
+	// std::cout <<"[debug] arcball camera focus = " << mCameraFocus.transpose() << std::endl;
+}
+
+void cArcballCamera::Reset()
+{
+	mCameraFocus = mCameraRestFocus;
+	cBaseCamera::Reset();
 }

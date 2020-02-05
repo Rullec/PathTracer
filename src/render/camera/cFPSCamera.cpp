@@ -2,8 +2,7 @@
 #include <util/cJsonUtil.hpp>
 #include <iostream>
 #include <GLFW/glfw3.h>
-#include <glm/gtc/matrix_transform.hpp>
-#include <util/cGlmUtil.hpp>
+
 
 cFPSCamera::cFPSCamera(const std::string & conf) : cBaseCamera(conf)
 {
@@ -23,30 +22,7 @@ void cFPSCamera::ParseConf(const std::string & conf)
 
 void cFPSCamera::Reload()
 {
-    // std::cout <<"[debug] camera fps reload " << std::endl;
-    // std::cout <<"front = " << mCameraFront.transpose() << std::endl;
-    // std::cout <<"up = " << mCameraUp.transpose() << std::endl;
-
-    // compute view trans
-    {
-        glm::vec3 pos = cGlmUtil::tVectorToGlmVector3(mCameraPos),
-                front = cGlmUtil::tVectorToGlmVector3(mCameraFront),
-                up = cGlmUtil::tVectorToGlmVector3(mCameraUp);
-        glm::mat4 view_mat = glm::lookAt(pos, pos + front, up);
-        mViewTrans = cGlmUtil::GlmMatixTotMatrix(view_mat);
-    }
-    // mViewTrans = tMatrix::Identity();
-
-    // calculate projection 
-    {
-        // glm::mat4 projection = glm::perspective(glm::radians(fov), 800.0f / 600.0f, 0.1f, 100.0f); 
-        // mProjTrans = cGlmUtil::GlmMatixTotMatrix(projection);
-        glm::mat4 projection = glm::perspective(glm::radians(mFOV), mWindowWidth / mWindowHeight, 0.1f, static_cast<float>(1e4)); 
-        mProjTrans = cGlmUtil::GlmMatixTotMatrix(projection);
-    }
-    // mProjTrans = tMatrix::Identity();
-    mRenderMat =  mProjTrans * mViewTrans;
-    // mRenderMat.transposeInPlace();
+    cBaseCamera::Reload();
 }
 
 void cFPSCamera::MouseMoveEvent(double xpos, double ypos)
@@ -117,7 +93,7 @@ void cFPSCamera::KeyEvent(int key, int scancode, int action, int mods)
             break;
         }
     }
-    Reload();
+    cBaseCamera::KeyEvent(key, scancode, action, mods);
 	
     // std::cout <<"[debug] fps keyevent " << std::endl;
 }
@@ -125,4 +101,9 @@ void cFPSCamera::KeyEvent(int key, int scancode, int action, int mods)
 void cFPSCamera::ScrollEvent(double offset)
 {
     // std::cout <<"[debug] fps scroll  " << std::endl;
+}
+
+void cFPSCamera::Reset()
+{
+    cBaseCamera::Reset();
 }

@@ -11,24 +11,22 @@ public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 	cDrawScene(const std::string & config );
 	~cDrawScene();
-	void Init() override;
-	void Update() override;
-	void KeyEvent(int key, int scancode, int action, int mods) override;
-	void MouseMoveEvent(double xpos, double ypos) override;
-	void MouseButtonEvent(int button, int action, int mods) override;
-	void ScrollEvent(double offset) override;
+	virtual void Init() override;
+	virtual void Update() override;
+	virtual void KeyEvent(int key, int scancode, int action, int mods) override;
+	virtual void MouseMoveEvent(double xpos, double ypos) override;
+	virtual void MouseButtonEvent(int button, int action, int mods) override;
+	virtual void ScrollEvent(double offset) override;
 
-private:
+protected:
 	std::shared_ptr<cBaseRender> mRender;
 	std::shared_ptr<cBaseCamera> mCamera;
+	bool mDataReload;
 
 	// rendering info
+	virtual void DrawScene();
+	bool AddObjToScene(std::shared_ptr<cBaseMesh> obj);
 	void DrawAxis();
 	void DrawGround();
 	void ParseConfig(const std::string & conf);
-
-protected:
-	bool mDataReload;
-	virtual void DrawScene();
-	bool AddObjToScene(std::shared_ptr<cBaseMesh> obj);
 };

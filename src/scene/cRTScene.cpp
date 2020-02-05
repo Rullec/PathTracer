@@ -1,6 +1,7 @@
 #include "cRTScene.hpp"
 #include <util/cJsonUtil.hpp>
 #include <geometry/cMeshLoader.h>
+#include <geometry/cPathTracer.hpp>
 
 cRTScene::tParams::tParams()
 {
@@ -15,6 +16,8 @@ cRTScene::cRTScene(const std::string & config) : cDrawScene(config)
     Json::Value scene_json = root["Scene"];
     mParams.mModelName = scene_json["ModelName"].asString();
     mParams.mModelScale = scene_json["ObjScale"].asDouble();
+
+    mTracer = std::shared_ptr<cPathTracer>(new cPathTracer(config));
 }
 
 void cRTScene::Init()
@@ -24,10 +27,13 @@ void cRTScene::Init()
     // load model and draw model
     LoadModel(mParams.mModelName, mParams.mModelScale);
 
+    // init path tracer
+    mTracer->Init(mModel, mCamera);
 }
 
 void cRTScene::Update()
 {
+    // draw lines and set flat mDataReload
     cDrawScene::Update();
 }
 
@@ -46,4 +52,42 @@ void cRTScene::DrawScene()
 {
     // add model to scene
     AddObjToScene(mModel);
+
+    // path tracer update
+    // 1. primary 
+    mTracer->Update();
+
+    std::vector<tLine> lines;
+    mTracer->GetRayLines(lines);
+    for( auto & x : lines)
+        mRender->AddLine(x);
+}
+
+void cRTScene::KeyEvent(int key, int scancode, int action, int mods)
+{
+    mDataReload = true;
+    cDrawScene::KeyEvent(key, scancode, action, mods);
+	// mCamera->KeyEvent(key, scancode, action, mods);
+	//mPicker->KeyEvent(key, scancode, action, mods);
+}
+
+void cRTScene::MouseMoveEvent(double xpos, double ypos)
+{
+    mDataReload = true;
+    cDrawScene::MouseMoveEvent(xpos, ypos);
+	// mCamera->MouseMoveEvent(xpos, ypos);
+}
+
+void cRTScene::MouseButtonEvent(int button, int action, int mods)
+{
+    mDataReload = true;
+    cDrawScene::MouseButtonEvent(button, action, mods);
+	// mCamera->MouseButtonEvent(button, action, mods);
+}
+
+void cRTScene::ScrollEvent(double offset)
+{
+    mDataReload = true;
+    cDrawScene::ScrollEvent(offset);
+	// mCamera->ScrollEvent(offset);
 }

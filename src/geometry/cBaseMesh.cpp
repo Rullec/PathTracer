@@ -116,7 +116,7 @@ eMeshType cBaseMesh::GetType()
 
 void cBaseMesh::PrintInfo()
 {
-	printf("[log] obj mesh includes %d faces and %d vertices\n", mFaceNum, mVertexNum);
+	printf("[log] obj mesh includes %d faces and %d vertices", mFaceNum, mVertexNum);
 }
 
 
@@ -324,7 +324,7 @@ void cObjMesh::SetTexture(unsigned char * tex, int width, int height)
 void cObjMesh::PrintInfo()
 {
 	cBaseMesh::PrintInfo();
-	std::cout <<"[log] and the texture is ";
+	std::cout <<", and the texture is ";
 	if(mTexturePtr != nullptr) std::cout << "available\n";
 	else std::cout <<"unavailable\n";
 }

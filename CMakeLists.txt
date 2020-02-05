@@ -5,7 +5,7 @@ set (CMAKE_CXX_STANDARD 11)
 # set(CMAKE_BUILD_TYPE "Release")
 # set(CMAKE_BUILD_TYPE "Debug")
 
-set( CMAKE_CXX_FLAGS "-O0 -g" )
+set( CMAKE_CXX_FLAGS "-O3 -g" )
 message("CMAKE_CXX_FLAGS is ${CMAKE_CXX_FLAGS}")
 
 # message("CMAKE_CXX_FLAGS_DEBUG is ${CMAKE_CXX_FLAGS_DEBUG}")

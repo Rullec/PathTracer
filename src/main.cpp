@@ -32,7 +32,7 @@ int main(int argc, char*   argv[])
 
  	char cCurrentPath[FILENAME_MAX];
 	getcwd(cCurrentPath, sizeof(cCurrentPath));
-	std::cout <<"debug begin to parse " << conf << " " << cCurrentPath << std::endl;
+	std::cout <<"[debug] begin to parse " << conf << " " << cCurrentPath << std::endl;
 	ParseConfig(conf);
 	InitGLFW();
 	InitGL();

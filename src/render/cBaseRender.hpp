@@ -7,7 +7,7 @@
 #include "camera/cArcballCamera.hpp"
 
 #define MAX_PIXEL_NUM (1920 * 1080)
-#define MAX_LINE_NUM (100000)
+#define MAX_LINE_NUM (1000000)
 #define MAX_FACE_NUM (100000)
 
 enum eRenderType {
@@ -52,6 +52,7 @@ protected:
 	const std::string mConfPath;
 	tVector mClearColor;
 	std::string mVertexShaderPath, mFragmentShaderPath;
+	bool mEnableGround;
 	std::string mGroundPath;
 	double mGroundScale;
 	tVector mGroundMove;

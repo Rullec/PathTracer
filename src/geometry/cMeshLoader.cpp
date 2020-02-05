@@ -46,7 +46,7 @@ std::shared_ptr<cObjMesh> cMeshLoader::LoadObj(const std::string & name, double 
 		exit(1);
 	}
 
-	std::cout <<"[debug] material size = " << materials.size() << std::endl; 
+	// std::cout <<"[debug] material size = " << materials.size() << std::endl; 
 	auto Array3TotVector = [](float * ptr)
 	{
 		return tVector(ptr[0], ptr[1], ptr[2], 0);

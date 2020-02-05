@@ -23,10 +23,12 @@ public:
 	void SetCameraPos(const tVector &);
 	void SetCameraUp(const tVector &);
 
+	tMatrix GetViewMat();
+	tMatrix GetProjMat();
 	tMatrix GetRenderMat();
 	tVector GetCameraPos();
 	tVector GetCameraFront();
-
+	void GetCameraScene(int & width, int & height, double & fov, double &near);
 	virtual void MouseMoveEvent(double xpos, double ypos);
 	virtual void MouseButtonEvent(int button, int action, int mods);
 	virtual void KeyEvent(int key, int scancode, int action, int mods);
@@ -41,14 +43,15 @@ protected:
 	bool mCameraFixed;
 	float mFOV;
 	float mWindowHeight, mWindowWidth;
-
+	float mNear;
+	float mFar;
 	// camera control info
 	bool mCameraActive;		// record camera status value for rotating smoothly
 	double mCursorLastX, mCursorLastY;
 
 	// recompute the key matrix if something changed
-	virtual void Reload() = 0;
-
+	virtual void Reload();
+	virtual void Reset();
 private:
 	void ParseConf(const std::string & conf);
 };

@@ -24,6 +24,7 @@ cBaseRender::cBaseRender(const std::string & a_): mConfPath(a_)
 	mGroundScale = render["ground_scale"].asDouble();
 	for(int i = 0; i < 3; i++)
 		mGroundMove[i] = render["ground_displacement"][i].asDouble();
+	mEnableGround = render["enable_ground"].asBool();
 
 	mCamera = nullptr;
 	// set up inits
@@ -81,7 +82,8 @@ void cBaseRender::Init()
 
 	// add text code & ground
 	// AddTestCubeTex();
-	InitGround();
+	if(mEnableGround)
+		InitGround();
 }
 
 void cBaseRender::InitShader()
