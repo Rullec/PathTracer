@@ -13,4 +13,5 @@ void main()
     gl_Position =  MVP * vec4(aPos.x, aPos.y, aPos.z, 1.0);
     VertColor = aColor;
     TexCoord = aTexCoord;
+    gl_PointSize = 30.0f;
 }

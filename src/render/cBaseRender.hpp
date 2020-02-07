@@ -35,6 +35,7 @@ public:
 	virtual void Clear();
 
 	void AddPixel(const tPixel & pixs);
+	void AddPoint(const tVertex & v);
 	void AddLine(const tEdge & line);
 	void AddLine(const tLine & line);
 	void AddFace(tVertex ** tPixel_lst);
@@ -60,6 +61,7 @@ protected:
 	enum eRenderStatus mRenderStatus;
 	std::shared_ptr<cBaseCamera> mCamera;
 
+	GLuint mPixelsVAO, mPixelsVBO;
 	GLuint mPointsVAO, mPointsVBO;
 	GLuint mLinesVAO, mLinesVBO;
 	GLuint mFacesVAO, mFacesVBO;
@@ -71,6 +73,8 @@ protected:
 	// buffers for non-texture objs
 	int mPixelNum;
 	float mPixelBuffer[MAX_PIXEL_NUM * tPixel::size];
+	int mPointNum;
+	float mPointBuffer[MAX_PIXEL_NUM * tVertex::size];
 	int mLineNum;
 	float mLineBuffer[MAX_LINE_NUM * tEdge::size];
 	int mFaceNum;

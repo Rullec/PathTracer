@@ -6,6 +6,10 @@ set (CMAKE_CXX_STANDARD 11)
 # set(CMAKE_BUILD_TYPE "Debug")
 
 set( CMAKE_CXX_FLAGS "-O3 -g" )
+if(APPLE)
+set(CMAKE_CXX_COMPILER "/usr/local/opt/llvm/bin/clang++")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -L /usr/local/opt/libomp/lib")
+endif()
 message("CMAKE_CXX_FLAGS is ${CMAKE_CXX_FLAGS}")
 
 # message("CMAKE_CXX_FLAGS_DEBUG is ${CMAKE_CXX_FLAGS_DEBUG}")

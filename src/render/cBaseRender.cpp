@@ -30,6 +30,8 @@ cBaseRender::cBaseRender(const std::string & a_): mConfPath(a_)
 	// set up inits
 	mPixelNum = 0;
 	memset(mPixelBuffer, 0, sizeof(mPixelBuffer));
+	mPointNum = 0;
+	memset(mPointBuffer, 0, sizeof(mPointBuffer));
 	mLineNum = 0;
 	memset(mLineBuffer, 0, sizeof(mLineBuffer));
 	mFaceNum = 0;
@@ -38,8 +40,9 @@ cBaseRender::cBaseRender(const std::string & a_): mConfPath(a_)
 	memset(mTexFaceBuffer, 0, sizeof(mTexFaceBuffer));
 	mTexInfo.clear();
 
-	mPointsVAO = -1;
-	mPointsVBO = -1;
+	mPixelsVAO = -1;
+	mPixelsVBO = -1;
+	mPointsVAO = mPointsVBO = -1;
 	mLinesVAO = -1;
 	mLinesVBO = -1;
 	mFacesVAO = -1;
@@ -68,8 +71,10 @@ void cBaseRender::Init()
 	InitShader();
 
 	// init VAO, VBO
-	glGenVertexArrays(1, &mPointsVAO);
-	glGenBuffers(1, &mPointsVBO);
+	glGenVertexArrays(1, &mPixelsVAO);
+	glGenBuffers(1, &mPixelsVBO);
+	glGenVertexArrays(1, & mPointsVAO);
+	glGenBuffers(1, & mPointsVBO);
 	glGenVertexArrays(1, &mLinesVAO);
 	glGenBuffers(1, &mLinesVBO);
 	glGenVertexArrays(1, &mFacesVAO);
@@ -143,10 +148,16 @@ void cBaseRender::Draw()
 	// non texture objs: faces, lines, points.
 	{
 		glUseProgram(mShaderProgram);
-		SetBool("gEnableTexture", false);
+		SetBool("texture_mode", false);
 
-		glBindVertexArray(mPointsVAO);
+		glBindVertexArray(mPixelsVAO);
 		glDrawArrays(GL_POINTS, 0, mPixelNum);
+
+		// std::cout <<"point num = " << mPointNum << std::endl;
+		glBindVertexArray(mPointsVAO);
+		SetBool("point_mode", true);
+		glDrawArrays(GL_POINTS, 0, mPointNum);
+		SetBool("point_mode", false);
 
 		glBindVertexArray(mLinesVAO);
 		glDrawArrays(GL_LINES, 0, mLineNum * 2);
@@ -158,7 +169,7 @@ void cBaseRender::Draw()
 
 	// draw texture objs
 	{
-		SetBool("gEnableTexture", true);
+		SetBool("texture_mode", true);
 		glUseProgram(mShaderProgram);
 		glBindVertexArray(mTexFacesVAO);
 
@@ -204,6 +215,24 @@ void cBaseRender::AddPixel(const tPixel & pix)
 	mPixelBuffer[st + 5] = static_cast<float>(pix.mColor[3]);
 }
 
+void cBaseRender::AddPoint(const tVertex & v)
+{
+	if (mPointNum >= MAX_PIXEL_NUM)
+	{
+		std::cout << "[error] cBaseRender::AddPOint: exceed max pixel num" << MAX_PIXEL_NUM << std::endl;
+		exit(1);
+	}
+
+	mNeedReload = true;
+	int st = (mPointNum++) * tVertex::size;
+	mPointBuffer[st + 0] = static_cast<float>(v.mPos[0]);
+	mPointBuffer[st + 1] = static_cast<float>(v.mPos[1]);
+	mPointBuffer[st + 2] = static_cast<float>(v.mPos[2]);
+	mPointBuffer[st + 3] = static_cast<float>(v.mColor[0]);
+	mPointBuffer[st + 4] = static_cast<float>(v.mColor[1]);
+	mPointBuffer[st + 5] = static_cast<float>(v.mColor[2]);
+	mPointBuffer[st + 6] = static_cast<float>(v.mColor[3]);
+}
 void cBaseRender::AddLine(const tLine & line)
 {
 	if (mLineNum >= MAX_LINE_NUM)
@@ -362,10 +391,10 @@ void cBaseRender::AddPolygon(const tPolygon & face)
 void cBaseRender::Reload()
 {
 	// std::cout << std::rand() << "reload" << std::endl;
-	// reload points
+	// reload pixels
 	{
-		glBindVertexArray(mPointsVAO);
-		glBindBuffer(GL_ARRAY_BUFFER, mPointsVBO);
+		glBindVertexArray(mPixelsVAO);
+		glBindBuffer(GL_ARRAY_BUFFER, mPixelsVBO);
 		glBufferData(GL_ARRAY_BUFFER, mPixelNum * tPixel::size * sizeof(float), mPixelBuffer, GL_STATIC_DRAW);
 		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, tPixel::size * sizeof(float), (void *)0);
 		glEnableVertexAttribArray(0);
@@ -373,6 +402,16 @@ void cBaseRender::Reload()
 		glEnableVertexAttribArray(1);
 	}
 
+	// points
+	{
+		glBindVertexArray(mPointsVAO);
+		glBindBuffer(GL_ARRAY_BUFFER, mPointsVBO);
+		glBufferData(GL_ARRAY_BUFFER, mPointNum * tVertex::size * sizeof(float), mPointBuffer, GL_STATIC_DRAW);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, tVertex::size * sizeof(float), (void *)0);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, tVertex::size * sizeof(float), (void *)(3 * sizeof(float)));
+		glEnableVertexAttribArray(1);
+	}
 
 	// reload lines
 	{
@@ -457,6 +496,7 @@ void cBaseRender::Clear()
 	mPixelNum = 0;
 	mLineNum = 0;
 	mFaceNum = 0;
+	mPointNum = 0;
 }
 
 void cBaseRender::SetBool(const std::string & name, bool value) const

@@ -46,4 +46,5 @@ public:
 	static tVector CalcAngularVelocity(const tQuaternion & old_rot, const tQuaternion & new_rot, double timestep);
 	static bool JudgeInRange(double val, double thre0, double thre1, double eps = 1e-5);
 	static double Radians(double degree);
+	static tVector RayCast(const tVector & ori, const tVector & dir, const tVector & p1, const tVector & p2, const tVector & p3, double eps = 1e-10);
 };

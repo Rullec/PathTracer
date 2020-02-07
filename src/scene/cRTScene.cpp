@@ -54,18 +54,24 @@ void cRTScene::DrawScene()
     AddObjToScene(mModel);
 
     // path tracer update
-    // 1. primary 
-    mTracer->Update();
+    // 1. generate primary rays
+    // 2. ray cast
+    std::vector<tLine> rays;
+    std::vector<tVertex> pts;
+    mTracer->Update(rays, pts);
 
-    std::vector<tLine> lines;
-    mTracer->GetRayLines(lines);
-    for( auto & x : lines)
-        mRender->AddLine(x);
+    for(auto & ray : rays)
+        mRender->AddLine(ray);
+    std::cout <<"ray inter = " << pts.size() << std::endl;
+    for(int i=0 ;i<pts.size(); i++)
+    {
+        mRender->AddPoint(pts[i]);
+    }
 }
 
 void cRTScene::KeyEvent(int key, int scancode, int action, int mods)
 {
-    mDataReload = true;
+    // mDataReload = true;
     cDrawScene::KeyEvent(key, scancode, action, mods);
 	// mCamera->KeyEvent(key, scancode, action, mods);
 	//mPicker->KeyEvent(key, scancode, action, mods);
@@ -73,21 +79,21 @@ void cRTScene::KeyEvent(int key, int scancode, int action, int mods)
 
 void cRTScene::MouseMoveEvent(double xpos, double ypos)
 {
-    mDataReload = true;
+    // mDataReload = true;
     cDrawScene::MouseMoveEvent(xpos, ypos);
 	// mCamera->MouseMoveEvent(xpos, ypos);
 }
 
 void cRTScene::MouseButtonEvent(int button, int action, int mods)
 {
-    mDataReload = true;
+    // mDataReload = true;
     cDrawScene::MouseButtonEvent(button, action, mods);
 	// mCamera->MouseButtonEvent(button, action, mods);
 }
 
 void cRTScene::ScrollEvent(double offset)
 {
-    mDataReload = true;
+    // mDataReload = true;
     cDrawScene::ScrollEvent(offset);
 	// mCamera->ScrollEvent(offset);
 }

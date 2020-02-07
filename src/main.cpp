@@ -85,6 +85,7 @@ void InitGL()
 		exit(1);
 	}
 
+	glEnable(GL_PROGRAM_POINT_SIZE);
 	glEnable(GL_DEPTH_TEST);
 	glClearColor(0.2, 0.3, 0.4, 1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
