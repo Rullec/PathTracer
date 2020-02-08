@@ -118,6 +118,59 @@ struct tMaterial{
 	}
 };
 
+
+struct tRay{
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+public:
+    tRay(): mOri(tVector::Zero()), mDir(tVector::Zero()) 
+    {
+
+    };
+    tRay(const tVector & ori, const tVector & dir){Init(ori, dir);};
+    void Init(const tVector & ori, const tVector & dir)
+    {
+        mOri = ori;
+        mDir = dir;
+        mInvDir = tVector(1.0/ mDir[0], 1.0/ mDir[1], 1.0/ mDir[2], 0);
+        // for(int i=0; i<3; i++) mInvDir[i] *= (mDir[0] > 0 ? 1 : -1);
+        for(int i=0; i<3; i++) if(std::isinf(mInvDir[i])) mInvDir[i] = 1e10 * (mDir[0] > 0 ? 1 : -1);
+        // for(int i=0; i<3; i++) mInvDir[i] *= (mDir[i] < 0);
+        // std::cout << mInvDir.transpose() << std::endl;
+    }
+    tVector GetOri() const{return mOri;}
+    tVector GetDir() const{return mDir;}
+    tVector GetInvDir() const {return mInvDir;}
+    // const bool * GetSign() const{return sign;}
+
+private:
+    tVector mOri;
+    tVector mDir;
+    // bool sign[3];
+    tVector mInvDir;
+};
+
+struct tAABB{
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+    Eigen::Vector2d bound[3]; 
+    // bound[0]:x_bound, bound[1]:y_bound, bound[2]:z_bound
+    // bound[i][0] lower bound, bound[i][1] upper bound
+    std::vector<int> mFaceId;
+    tAABB()
+    {
+        bound[0] = bound[1] = bound[2] = Eigen::Vector2d::Zero();
+        mFaceId.clear();
+    };
+    bool intersect(const tVector & pos)const;
+    bool intersect(const tRay & ray)const;
+    bool intersect(const tLine & line)const;
+    bool intersect(const tFace * face)const;
+};
+
+// methods
+
+void BuildLinesForFace(std::vector<tLine>& lines, const tFace * face);
+void BuildLinesForBox(std::vector<tLine>& lines, const tAABB & box);
+
 class cBaseMesh
 {
 public:

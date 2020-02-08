@@ -2,6 +2,7 @@
 #include <util/cJsonUtil.hpp>
 #include <GLFW/glfw3.h>
 #include <iostream>
+#define GLM_FORCE_RADIANS
 #include <glm/gtc/matrix_transform.hpp>
 #include <util/cGlmUtil.hpp>
 
@@ -16,6 +17,7 @@ cBaseCamera::cBaseCamera(const std::string & conf)
 	mCameraActive = false;
 	mCursorLastX = std::nan("");
 	mCursorLastY = std::nan("");
+
 }
 
 void cBaseCamera::SetCameraPos(const tVector & pos)
@@ -156,10 +158,14 @@ void cBaseCamera::Reload()
 
     // calculate projection 
     {
-        // glm::mat4 projection = glm::perspective(glm::radians(fov), 800.0f / 600.0f, 0.1f, 100.0f); 
-        // mProjTrans = cGlmUtil::GlmMatixTotMatrix(projection);
         glm::mat4 projection = glm::perspective(glm::radians(mFOV), mWindowWidth / mWindowHeight, mNear, mFar); 
         mProjTrans = cGlmUtil::GlmMatixTotMatrix(projection);
+		// std::cout <<"proj mat = " << mProjTrans<<std::endl;
+		// exit(1);
+		// project mat self implement
+		{
+
+		}
     }
     // mProjTrans = tMatrix::Identity();
     mRenderMat =  mProjTrans * mViewTrans;

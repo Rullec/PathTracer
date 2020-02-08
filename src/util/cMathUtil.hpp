@@ -47,4 +47,8 @@ public:
 	static bool JudgeInRange(double val, double thre0, double thre1, double eps = 1e-5);
 	static double Radians(double degree);
 	static tVector RayCast(const tVector & ori, const tVector & dir, const tVector & p1, const tVector & p2, const tVector & p3, double eps = 1e-10);
+	template <typename T> static bool IsSame(const T & v1, const T & v2, double eps = 1e-5)
+	{
+		return (v1 - v2).norm() < eps;
+	}
 };

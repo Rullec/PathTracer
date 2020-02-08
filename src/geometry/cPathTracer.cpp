@@ -35,6 +35,12 @@ void cPathTracer::Init(std::shared_ptr<cBaseMesh> scene_mesh, std::shared_ptr<cB
     }
 }
 
+void RayToLine(const tRay & ray, tLine & line)
+{
+    line.mOri = ray.GetOri();
+    line.mDest = ray.GetDir() * 1e4 + line.mOri;
+}
+
 void cPathTracer::Update(std::vector<tLine> & rays, std::vector<tVertex>& pts)
 {
     if(mCamera == nullptr || mSceneMesh == nullptr)
@@ -43,9 +49,42 @@ void cPathTracer::Update(std::vector<tLine> & rays, std::vector<tVertex>& pts)
         exit(1);
     }
 
+//     rays = glo_lines;
+// {
+// //     -0.5 -0.5  0.5    1
+// //  
+// //
+//     tVertex v[3];
+//     v[0].mPos = tVector(-0.5, -0.5,  0.5,    1);
+//     v[1].mPos = tVector(0.5, -0.5,  0.5,    1);
+//     v[2].mPos = tVector( 0.5, 0.5, 0.5,   1);
+//     tFace * face = new tFace();
+//     face->mVertexPtrList[0] = v;
+//     face->mVertexPtrList[1] = v + 1;
+//     face->mVertexPtrList[2] = v+2;
+
+//     tAABB box;
+//     box.bound[0] = Eigen::Vector2d(0, 0.5001);
+//     box.bound[1] = Eigen::Vector2d(-0.5001, 0);
+//     box.bound[2] = Eigen::Vector2d(0.25, 0.5001);
+
+//     if(box.intersect(face) == false)
+//     {
+//         std::cout << " error\n";
+//         exit(1);
+//     }
+// }
+    // 测试
     UpdatePrimaryRay();
+
+    std::cout <<"[debug] begin ray cast primary rays\n";
     RayCastPrimaryRay(rays, pts);
-    std::cout <<"ray cast pts = " << pts.size() << std::endl;
+
+    // rays.resize(mWidth * mHeight);
+    // for(int i=0; i< mWidth * mHeight; i++)
+    // {
+    //     RayToLine(mScreenRay[i], rays[i]);
+    // }
 }
 
 void cPathTracer::UpdatePrimaryRay()
@@ -70,27 +109,39 @@ void cPathTracer::UpdatePrimaryRay()
    tMatrix mat;
    {
        // shape the conversion mat
+        tVector test = tVector(0 ,mHeight/2, 0, 1);
         tMatrix mat1 = tMatrix::Identity();
         mat1(0, 0) = 1.0 / mWidth;
         mat1(0, 3) = 0.5 / mWidth;
         mat1(1, 1) = 1.0 / mHeight;
         mat1(1, 3) = 0.5 / mHeight;
+        // std::cout <<"after 1, vec = " << (test = mat1 * test).transpose() << std::endl;
+
         tMatrix mat2 = tMatrix::Identity();
         mat2(0, 0) = 2;
         mat2(0, 3) = -1;
         mat2(1, 1) = -2;
         mat2(1, 3) = 1;
+        // std::cout <<"after 2, vec = " << (test = mat2 * test).transpose() << std::endl;
+        
         // pos = mat2 * pos;
         tMatrix mat3 = tMatrix::Identity();
-        mat3(0, 0) = mWidth/ mHeight * std::tan(cMathUtil::Radians(mFov) / 2);
-        mat3(1, 1) = std::tan(cMathUtil::Radians(mFov) / 2);
+        mat3(0, 0) = mWidth / mHeight * std::tan(cMathUtil::Radians(mFov) / 2) * mNear;
+        mat3(1, 1) = std::tan(cMathUtil::Radians(mFov) / 2) * mNear;
         mat3(2, 2) = 0, mat3(2, 3) = -mNear;
+        // std::cout <<"after 3, vec = " << (test = mat3 * test).transpose() << std::endl;
+       
+        // std::cout << "mat 3 = " << mat3 << std::endl;
+        // exit(1);
         // pos = mat3 * pos;
         tMatrix mat4 = mCamera->GetViewMat().inverse();
+        // std::cout <<"after 4, vec = " << (test = mat4 * test).transpose() << std::endl;
+        // std::cout <<"dir = " <<  (test - mCamera->GetCameraPos()).normalized().transpose() << std::endl;
         mat = mat4 * mat3 * mat2 * mat1;
+        // exit(1);
     }
    tVector camera_pos = mCamera->GetCameraPos();
-// #pragma omp parallel for
+   double x_max = -1, x_min = 1, y_max = -1, y_min = 1;
     for(int y = 0; y < mHeight; y ++ )
     {
         for(int x = 0 ; x < mWidth; x++)
@@ -98,10 +149,25 @@ void cPathTracer::UpdatePrimaryRay()
             // [row, col]
             int access_id = y * mWidth + x;
             tVector pos = mat * tVector(x, y, 1, 1);
-            mScreenRay[access_id].Init(camera_pos, pos - camera_pos);
+            tVector dir = (pos - camera_pos).normalized();
+            // std::cout <<"dir = " << dir.transpose() << std::endl;
+            mScreenRay[access_id].Init(camera_pos, dir);
+            // if(dir[0] > x_max) x_max = dir[0];
+            // if(dir[0] < x_min) x_min = dir[0];
+            // if(dir[1] > y_max) y_max = dir[1];
+            // if(dir[1] < y_min) y_min = dir[1];
+            // if(dir[0] < -0.97)
+            // {
+            //     std::cout <<"x < -0.97" << std::endl;
+            //     std::cout << "it is = " << x <<" " << y << std::endl;
+            //     // std::cout <<"dir = " << 
+            // }
             // std::cout << (pos - camera_pos).normalized().transpose() << std::endl;
         }
     }
+    // std::cout <<" x from " << x_min <<" to " << x_max << std::endl;
+    // std::cout <<" y from " << y_min <<" to " << y_max << std::endl;
+    // exit(1);
     // cTimeUtil::End();
 }
 
@@ -119,6 +185,7 @@ void cPathTracer::ParseConfig(const std::string & conf)
     }
 
     mAccelStructure =  path_tracer_json["EnableAccel"].asBool();
+    mDivide = path_tracer_json["Subdivide"].asInt();
     // std::cout <<"[debug] accel = " << mAccelStructure<<std::endl;
 }
 
@@ -145,8 +212,8 @@ void cPathTracer::GetRayLines(std::vector<tLine> &lines)
     }
     // std::cout <<"[debug] cPathTracer::GetRayLines " << line.size() << std::endl;
 }
-#include <omp.h>
-void cPathTracer::RayCastPrimaryRay(std::vector<tLine> & lines, std::vector<tVertex> & pts)
+
+void cPathTracer::RayCastPrimaryRay(std::vector<tLine> & lines, std::vector<tVertex> & pts)const
 {
     cTimeUtil::Begin();
     // collect all rays
@@ -159,25 +226,29 @@ void cPathTracer::RayCastPrimaryRay(std::vector<tLine> & lines, std::vector<tVer
     const std::string log = "raycast.log";
     cFileUtil::ClearFile(log);
     FILE * fout = cFileUtil::OpenFile(log, "w");
-    tLine line;
-    pts.clear();
-    tVertex vertex;
-// #pragma omp parallel 
+
+#pragma omp parallel for
     for(int i=0; i < mWidth * mHeight; i++)
     {
-        // if(i%10 !=0) continue;
-        // printf("progress: %.3f%\n", i * 100.0 / (mWidth * mHeight));
-        tRay & ray = mScreenRay[i];
+        if(i%10 !=0) continue;
+        printf("\rprogress: %.3f%", i * 100.0 / (mWidth * mHeight));
+        const tRay & ray = mScreenRay[i];
         tVector pos = tVector::Ones() * std::nan("");
         RayCastSingleRay(ray, pos);
+
         if(pos.hasNaN() == false)
         {
+            tLine line;
+            tVertex vertex;
             // std::cout << pos.transpose() << std::endl;
             line.mOri = ray.GetOri();
             line.mDest = ray.GetOri() + 10e4 * ray.GetDir();
-            lines.push_back(line);
             vertex.mPos = pos;
             vertex.mColor = tVector(0.5, 0.5, 0.5, 1);
+
+#pragma omp critical
+            lines.push_back(line);
+#pragma omp critical
             pts.push_back(vertex);
             // std::cout << i << std::endl;
         }
@@ -208,28 +279,56 @@ void cPathTracer::RayCastPrimaryRay(std::vector<tLine> & lines, std::vector<tVer
     cTimeUtil::End();
 }
 
-void cPathTracer::RayCastSingleRay(const tRay & ray, tVector & pt)
+void cPathTracer::RayCastSingleRay(const tRay & ray, tVector & pt)const
 {
     pt = tVector::Ones() * std::nan("");
     std::vector<tFace *> & faces = mSceneMesh->GetFaceList();
     double dist = std::numeric_limits<double>::max();
-    for(auto &x : faces)
+    if(mAccelStructure == false)
     {
-        tVector p = cMathUtil::RayCast(ray.GetOri(), ray.GetDir(), x->mVertexPtrList[0]->mPos,
-            x->mVertexPtrList[1]->mPos,
-            x->mVertexPtrList[2]->mPos);
-        if(p.hasNaN() == false && (p - ray.GetOri()).norm() < dist)
+        // std::cout <<" ray ori = " << ray.GetOri().transpose() << std::endl;
+        // std::cout <<"ray dir = " << ray.GetDir().transpose() << std::endl;
+        for(auto &x : faces)
         {
-            pt = p;
-            dist = (p - ray.GetOri()).norm();
+            tVector p = cMathUtil::RayCast(ray.GetOri(), ray.GetDir(), x->mVertexPtrList[0]->mPos,
+                x->mVertexPtrList[1]->mPos,
+                x->mVertexPtrList[2]->mPos);
+            if(p.hasNaN() == false && (p - ray.GetOri()).norm() < dist)
+            {
+                pt = p;
+                dist = (p - ray.GetOri()).norm();
+            }
         }
     }
+    else
+    {
+        // ray-aabb intersect -> ray face intersect
+        for(auto & box : mAABBLst)
+        {
+            if(box.intersect(ray) == true)
+            {
+                for(auto & x : faces)
+                {
+                    tVector p = cMathUtil::RayCast(ray.GetOri(), ray.GetDir(), x->mVertexPtrList[0]->mPos,
+                        x->mVertexPtrList[1]->mPos,
+                        x->mVertexPtrList[2]->mPos);
+                    if(p.hasNaN() == false && (p - ray.GetOri()).norm() < dist)
+                    {
+                        pt = p;
+                        dist = (p - ray.GetOri()).norm();
+                    }
+                }
+            }
+        }
+    }
+    
+    
 }
 
 void cPathTracer::BuildAccelStructure()
 {
-    std::cout <<"begin to build accel\n";
-    // exit(1);
+    
+    // create AABB and divide the space
     if(nullptr == mSceneMesh)
     {
         std::cout <<" scene null failed\n";
@@ -238,48 +337,133 @@ void cPathTracer::BuildAccelStructure()
 
     tVector upper, lower;
     mSceneMesh->GetBound(upper, lower);
-    const int divide = 4;
+    for(int i=0; i<3; i++) upper[i] +=1e-3, lower[i]-=1e-3;
+    std::cout <<"[debug] upper = " << upper.transpose() <<", lower = " << lower.transpose() << std::endl;
     tAABB box;
+    mAABBLst.clear();
     int id[3] = {0, 0, 0};
-    for(id[0]=0; id[0]<divide; id[0]++)
-        for(id[1]=0; id[1]<divide; id[1]++)
-            for(id[2]=0; id[2]<divide; id[2]++)
+    for(id[0]=0; id[0]<mDivide; id[0]++)
+        for(id[1]=0; id[1]<mDivide; id[1]++)
+            for(id[2]=0; id[2]<mDivide; id[2]++)
     {
         for(int i=0; i<3; i++)
         {
-            box.bound[i][0] = lower[i] + (upper-lower)[i] / divide * id[i];
-            box.bound[i][1] = lower[i] + (upper-lower)[i] / divide * (id[i] + 1);
+            box.bound[i][0] = lower[i] + (upper-lower)[i] / mDivide * id[i];
+            box.bound[i][1] = lower[i] + (upper-lower)[i] / mDivide * (id[i] + 1);
         }
+        mAABBLst.push_back(box);
     }
+    
+
+    // dispatch all faces to these AABB
+    std::vector<tFace *> & faces = mSceneMesh->GetFaceList();
+    // std::cout << "Face num = " << faces.size() << std::endl;
+#pragma omp parallel for
+    for(int i=0; i<faces.size(); i++)
+    {
+        // std::cout <<"dispatch face " << std::endl;
+        DispatchFaceToAABB(faces[i]);
+    }
+
+    // 查询占空比
+    int num = 0;
+    std::vector<tAABB>::iterator it = mAABBLst.begin();
+    std::cout << "generate aabb num = " << mAABBLst.size() << std::endl;
+    for(int i=0; i<mAABBLst.size(); i++)
+    {
+        if(mAABBLst[i].mFaceId.size() == 0)
+        {
+            num++;
+            it = mAABBLst.erase(it);
+        }
+        else
+        {
+            it++;
+        }
+        
+    }
+    std::cout << "non-empty aabb num = " << mAABBLst.size() << std::endl;
+
+
+    // // 绘制所有鸽子
+    // for(auto & box : mAABBLst)
+    // {
+    //     std::vector<tLine> subline;
+    //     BuildLinesForBox(subline, box);
+    //     glo_lines.insert(glo_lines.end(), subline.begin(), subline.end());
+    // }
 }
 
-bool tAABB::intersect(tRay &ray)
+void cPathTracer::DispatchFaceToAABB(const tFace * face)
 {
-    double t;
-    const Eigen::Vector3d & invdir = ray.GetInvDir().segment(0, 3);
-    const Eigen::Vector3d & origin = ray.GetOri().segment(0, 3);
-    float t1 = (bound[0][0] - origin.x())*invdir.x();
-    float t2 = (bound[0][1] - origin.x())*invdir.x();
-    float t3 = (bound[1][0] - origin.y())*invdir.y();
-    float t4 = (bound[1][1] - origin.y())*invdir.y();
-    float t5 = (bound[2][0] - origin.z())*invdir.z();
-    float t6 = (bound[2][1] - origin.z())*invdir.z();
-
-    float tmin = std::max(std::max(std::min(t1, t2), std::min(t3, t4)), std::min(t5, t6));
-    float tmax = std::min(std::min(std::max(t1, t2), std::max(t3, t4)), std::max(t5, t6));
-
-    if (tmax < 0)
+    // std::cout <<"dispatch face = " << face->mFaceId << std::endl;
+    bool find_box = false;
+    for(int i=0; i<mAABBLst.size(); i++)
     {
-        t = tmax;
-        return false;
+        auto &box = mAABBLst[i];
+        // std::cout <<"find " << i << std::endl;
+        if(true == box.intersect(face))
+        {
+            find_box = true;
+            // std::cout <<"intersect good =  " << i << std::endl;
+#pragma omp critical
+            box.mFaceId.push_back(face->mFaceId);
+        }
     }
 
-    if (tmin > tmax)
+    if(false == find_box)
     {
-        t = tmax;
-        return false;
-    }
+        std::cout <<"[error] find box for face failed" << std::endl;
+        for(int i=0; i<NUM_VERTEX_PER_FACE; i++)
+            std::cout << face->mVertexPtrList[i]->mPos.transpose() << std::endl;
 
-    t = tmin;
-    return true;
+        std::cout << "all boxes info\n";
+        for(auto &box : mAABBLst)
+        {
+            std::cout <<"-----------\n";
+            std::cout <<"box x range = " << box.bound[0].transpose() << std::endl;
+            std::cout <<"box y range = " << box.bound[1].transpose() << std::endl;
+            std::cout <<"box z range = " << box.bound[2].transpose() << std::endl;
+        }
+        exit(1);
+    }
+    // auto FromGroupToId = [](tVector & v, int divide) 
+    // { 
+    //     return v[0] * divide * divide + v[1] * divide + v[2];
+    // };
+    // assert(NUM_VERTEX_PER_FACE == 3);
+    // tVertex * const *  v_lst = face->mVertexPtrList;
+    // tVector lower, upper;
+    // mSceneMesh->GetBound(lower, upper);
+
+    // tVector group[3];
+    // for(int i=0; i< 3; i++)
+    // {
+    //     group[i].setZero();
+    //     tVector cur_pos = v_lst[i]->mPos;
+    //     for(int j=0; j<3; j++) // for x y z 3 dims
+    //         group[i][j] = static_cast<int>((cur_pos[j] - lower[j]) / ((upper[j] - lower[j]) / mDivide));
+    // }
+
+    // // if 3 points are in the same cube
+    // if(cMathUtil::IsSame(group[0], group[1]) && cMathUtil::IsSame(group[0], group[2]))
+    // {
+    //     int access_id = FromGroupToId(group[0], mDivide);
+    //     // std::cout << "id = " << access_id << std::endl;
+    //     if(mAABBLst.size() <= access_id)
+    //     {
+    //         std::cout << "error mAABB list = " << mAABBLst.size() << std::endl;
+    //         exit(1);
+    //     }
+    //     mAABBLst[access_id].mFaceId.push_back(face->mFaceId);
+    // }
+    // else
+    // {
+    //     // else, if 3 points are in seperate cubes
+    //     // search for all cubes
+    //     // std::cout << "aabb list = " << mAABBLst.size( ) << std::endl;
+    //     // for(auto & box : mAABBLst)
+
+    //     // std::cout <<"aabb end \n";
+    // }
 }
