@@ -3,7 +3,8 @@
 #include <render/camera/cBaseCamera.hpp>
 #include <util/cTimeUtil.hpp>
 #include <util/cFileUtil.h>
-// #include <omp.h>
+#include <util/cJsonUtil.hpp>
+#include <omp.h>
 
 cPathTracer::cPathTracer(const std::string &conf)
 {
@@ -27,6 +28,11 @@ void cPathTracer::Init(std::shared_ptr<cBaseMesh> scene_mesh, std::shared_ptr<cB
     // std::cout <<"[debug] cPathTracer::Init width, height = " << mWidth <<" " << mHeight << ", fov = " << mFov << ", near = " << mNear << std::endl;
     mScreen = new tVector[mWidth * mHeight];
     mScreenRay = new tRay[mWidth * mHeight];
+
+    if(mAccelStructure)
+    {
+        BuildAccelStructure();
+    }
 }
 
 void cPathTracer::Update(std::vector<tLine> & rays, std::vector<tVertex>& pts)
@@ -76,8 +82,8 @@ void cPathTracer::UpdatePrimaryRay()
         mat2(1, 3) = 1;
         // pos = mat2 * pos;
         tMatrix mat3 = tMatrix::Identity();
-        mat3(0, 0) = mWidth/ mHeight * std::tan(cMathUtil::Radians(mFov));
-        mat3(1, 1) = std::tan(cMathUtil::Radians(mFov));
+        mat3(0, 0) = mWidth/ mHeight * std::tan(cMathUtil::Radians(mFov) / 2);
+        mat3(1, 1) = std::tan(cMathUtil::Radians(mFov) / 2);
         mat3(2, 2) = 0, mat3(2, 3) = -mNear;
         // pos = mat3 * pos;
         tMatrix mat4 = mCamera->GetViewMat().inverse();
@@ -92,8 +98,8 @@ void cPathTracer::UpdatePrimaryRay()
             // [row, col]
             int access_id = y * mWidth + x;
             tVector pos = mat * tVector(x, y, 1, 1);
-            mScreenRay[access_id].mOri = camera_pos;
-            mScreenRay[access_id].mDir = pos - camera_pos;
+            mScreenRay[access_id].Init(camera_pos, pos - camera_pos);
+            // std::cout << (pos - camera_pos).normalized().transpose() << std::endl;
         }
     }
     // cTimeUtil::End();
@@ -102,7 +108,18 @@ void cPathTracer::UpdatePrimaryRay()
 
 void cPathTracer::ParseConfig(const std::string & conf)
 {
-    std::cout <<"[debug] cPathTracer::ParseConfig " << conf << std::endl;
+    // std::cout <<"[debug] cPathTracer::ParseConfig " << conf << std::endl;
+    Json::Value root;
+    cJsonUtil::ParseJson(conf, root);
+    Json::Value path_tracer_json = root["PathTracer"];
+    if(path_tracer_json.isNull() == true)
+    {
+        std::cout <<"[error] ParseConfig EnableAccel failed\n";
+        exit(1);
+    }
+
+    mAccelStructure =  path_tracer_json["EnableAccel"].asBool();
+    // std::cout <<"[debug] accel = " << mAccelStructure<<std::endl;
 }
 
 
@@ -115,8 +132,8 @@ void cPathTracer::GetRayLines(std::vector<tLine> &lines)
         // if(250 <= i / mWidth&& i / mWidth <= 262 &&250 <= i%mWidth && i%mWidth <=262)
         {
             tLine line;
-            line.mOri = mScreenRay[i].mOri;
-            line.mDest = mScreenRay[i].mDir + mScreenRay[i].mOri;
+            line.mOri = mScreenRay[i].GetOri();
+            line.mDest = mScreenRay[i].GetDir() + mScreenRay[i].GetOri();
             line.mColor = tVector(0.2, 0.3, 0.4, 0.5);
             lines.push_back(line);
 
@@ -145,25 +162,27 @@ void cPathTracer::RayCastPrimaryRay(std::vector<tLine> & lines, std::vector<tVer
     tLine line;
     pts.clear();
     tVertex vertex;
-    #pragma omp parallel for
+// #pragma omp parallel 
     for(int i=0; i < mWidth * mHeight; i++)
     {
         // if(i%10 !=0) continue;
-        printf("\r progress: %.3f%", i * 100.0 / (mWidth * mHeight));
+        // printf("progress: %.3f%\n", i * 100.0 / (mWidth * mHeight));
         tRay & ray = mScreenRay[i];
         tVector pos = tVector::Ones() * std::nan("");
         RayCastSingleRay(ray, pos);
         if(pos.hasNaN() == false)
         {
             // std::cout << pos.transpose() << std::endl;
-            line.mOri = ray.mOri;
-            line.mDest = ray.mOri + 10e4 * ray.mDir;
+            line.mOri = ray.GetOri();
+            line.mDest = ray.GetOri() + 10e4 * ray.GetDir();
             lines.push_back(line);
             vertex.mPos = pos;
             vertex.mColor = tVector(0.5, 0.5, 0.5, 1);
             pts.push_back(vertex);
+            // std::cout << i << std::endl;
         }
     }
+    std::cout << "total tays = " << mHeight * mWidth << std::endl;
     // {
     //     // 范围测试
     //     tVector upper, lower;
@@ -196,13 +215,71 @@ void cPathTracer::RayCastSingleRay(const tRay & ray, tVector & pt)
     double dist = std::numeric_limits<double>::max();
     for(auto &x : faces)
     {
-        tVector p = cMathUtil::RayCast(ray.mOri, ray.mDir, x->mVertexPtrList[0]->mPos,
+        tVector p = cMathUtil::RayCast(ray.GetOri(), ray.GetDir(), x->mVertexPtrList[0]->mPos,
             x->mVertexPtrList[1]->mPos,
             x->mVertexPtrList[2]->mPos);
-        if(p.hasNaN() == false && (p - ray.mOri).norm() < dist)
+        if(p.hasNaN() == false && (p - ray.GetOri()).norm() < dist)
         {
             pt = p;
-            dist = (p - ray.mOri).norm();
+            dist = (p - ray.GetOri()).norm();
         }
     }
+}
+
+void cPathTracer::BuildAccelStructure()
+{
+    std::cout <<"begin to build accel\n";
+    // exit(1);
+    if(nullptr == mSceneMesh)
+    {
+        std::cout <<" scene null failed\n";
+        exit(1);
+    }
+
+    tVector upper, lower;
+    mSceneMesh->GetBound(upper, lower);
+    const int divide = 4;
+    tAABB box;
+    int id[3] = {0, 0, 0};
+    for(id[0]=0; id[0]<divide; id[0]++)
+        for(id[1]=0; id[1]<divide; id[1]++)
+            for(id[2]=0; id[2]<divide; id[2]++)
+    {
+        for(int i=0; i<3; i++)
+        {
+            box.bound[i][0] = lower[i] + (upper-lower)[i] / divide * id[i];
+            box.bound[i][1] = lower[i] + (upper-lower)[i] / divide * (id[i] + 1);
+        }
+    }
+}
+
+bool tAABB::intersect(tRay &ray)
+{
+    double t;
+    const Eigen::Vector3d & invdir = ray.GetInvDir().segment(0, 3);
+    const Eigen::Vector3d & origin = ray.GetOri().segment(0, 3);
+    float t1 = (bound[0][0] - origin.x())*invdir.x();
+    float t2 = (bound[0][1] - origin.x())*invdir.x();
+    float t3 = (bound[1][0] - origin.y())*invdir.y();
+    float t4 = (bound[1][1] - origin.y())*invdir.y();
+    float t5 = (bound[2][0] - origin.z())*invdir.z();
+    float t6 = (bound[2][1] - origin.z())*invdir.z();
+
+    float tmin = std::max(std::max(std::min(t1, t2), std::min(t3, t4)), std::min(t5, t6));
+    float tmax = std::min(std::min(std::max(t1, t2), std::max(t3, t4)), std::max(t5, t6));
+
+    if (tmax < 0)
+    {
+        t = tmax;
+        return false;
+    }
+
+    if (tmin > tmax)
+    {
+        t = tmax;
+        return false;
+    }
+
+    t = tmin;
+    return true;
 }
