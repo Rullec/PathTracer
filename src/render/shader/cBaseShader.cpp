@@ -8,9 +8,9 @@
 // -------------------BaseShader begin-----------------------
 cBaseShader::cBaseShader(std::string src_path, unsigned int shader_type)
 {
-    if(GL_VERTEX_SHADER != shader_type && GL_FRAGMENT_SHADER != shader_type)
+    if(GL_VERTEX_SHADER != shader_type && GL_FRAGMENT_SHADER != shader_type && GL_GEOMETRY_SHADER != shader_type)
     {
-        std::cout <<"[error] cBase Shader Unsupported shader type: " << shader_type << std::endl;
+        std::cout <<"[error] cBaseShader: Unsupported shader type: " << shader_type << std::endl;
         exit(1);
     }
 
@@ -75,8 +75,16 @@ void cBaseShader::CompileSrc()
 
     if(GL_FALSE == success)
     {
+        std::string type ="";
+        switch (mShaderType)
+        {
+        case GL_VERTEX_SHADER: type = "vertex"; break;
+        case GL_GEOMETRY_SHADER: type = "geometry"; break;
+        case GL_FRAGMENT_SHADER: type = "fragment"; break;
+        default: std::cout <<"[error] cBaseShader::CompileSrc: unsupported shader type = " << mShaderHandle << std::endl; exit(1); break;
+        }
         glGetShaderInfoLog(mShaderHandle, logsize + 1, NULL, infoLog);
-        std::cout << "[error] Failed to compile shader " << mSrcPath << ": \n\t"<< infoLog << std::endl;
+        std::cout << "[error] Failed to compile " << type << " shader " << mSrcPath << ": \n\t"<< infoLog << std::endl;
         exit(1);
     }
 	else

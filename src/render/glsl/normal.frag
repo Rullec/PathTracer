@@ -1,12 +1,15 @@
 #version 330 core
 in vec4 VertColor;
 in vec2 TexCoord;
+in vec3 normal1;
 out vec4 FragColor;
 
 // texture sampler
 uniform sampler2D texture1;
 uniform bool texture_mode;
 uniform bool point_mode;
+uniform vec3 light_pos;
+uniform vec3 camera_pos;
 
 void main()
 {
@@ -22,6 +25,7 @@ void main()
         FragColor = VertColor;
     }
 
+    // color = ambient_color * cos() + (1 - cos)^n * specular_color
     // for point mode    
     if(true == point_mode)
     {
@@ -32,4 +36,5 @@ void main()
         }
     }
 
+    // 
 } 

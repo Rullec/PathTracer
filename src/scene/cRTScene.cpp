@@ -58,10 +58,11 @@ void cRTScene::DrawScene()
     // 2. ray cast
     std::vector<tLine> rays;
     std::vector<tVertex> pts;
+    std::vector<tFace> faces;
     // mTracer->Update(rays, pts);
     mTracer->Process();
-    mTracer->GetDrawResources(rays, pts);
-    std::cout <<"get draw res = " << rays.size() <<" " << pts.size() << std::endl;
+    mTracer->GetDrawResources(rays, pts, faces);
+    // std::cout <<"get draw res = " << rays.size() <<" " << pts.size() << std::endl;
 
     for(auto & ray : rays)
         mRender->AddLine(ray);
@@ -70,6 +71,9 @@ void cRTScene::DrawScene()
     {
         mRender->AddPoint(pts[i]);
     }
+    for(auto & f : faces)
+        mRender->AddFace(f.mVertexPtrList);
+    cDrawScene::DrawScene();
 }
 
 void cRTScene::KeyEvent(int key, int scancode, int action, int mods)

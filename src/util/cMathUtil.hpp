@@ -22,6 +22,8 @@ extern enum eRotationOrder gRotationOrder;
 
 class cMathUtil {
 public:
+
+	// general
 	template <typename T> static T clamp(T val, T max, T down)
 	{
 		if (down > max)
@@ -36,7 +38,17 @@ public:
 	{
 		return (T(0) < val) - (val < T(0));
 	}
-
+	// template <typename T> static bool IsSame(const T & v1, const T & v2, double eps = 1e-5)
+	// {
+	// 	return (v1 - v2).norm() < eps;
+	// }
+	static bool IsSame(const tVector & v1, const tVector & v2, const double eps = 1e-5);
+	static bool IsNormalized(const tVector & v);
+	static bool JudgeInRange(double val, double thre0, double thre1, double eps = 1e-5);
+	static bool IsPoint(const tVector & v);
+	static bool IsVector(const tVector & v);
+	static tVector WiseProduct(const tVector & v1, const tVector &v2);
+	// rotation
 	static tMatrix Translate(const tVector &);
 	static tMatrix RotMat(const tQuaternion & quater);
 	static tVector QuaternionToCoef(const tQuaternion & quater);
@@ -44,11 +56,14 @@ public:
 	static tQuaternion AxisAngleToQuaternion(const tVector & angvel);
 	static tVector QuaternionToAxisAngle(const tQuaternion & );
 	static tVector CalcAngularVelocity(const tQuaternion & old_rot, const tQuaternion & new_rot, double timestep);
-	static bool JudgeInRange(double val, double thre0, double thre1, double eps = 1e-5);
+	static tVector QuatRotVec(const tQuaternion & quater, const tVector & vec);
 	static double Radians(double degree);
+
+	// distribution
+	static tVector SampleHemiSphereUniform(const tVector & , double & pdf);
+	static tVector SampleHemiSphereCosine(const tVector & , double & pdf);
+	// geometry
 	static tVector RayCast(const tVector & ori, const tVector & dir, const tVector & p1, const tVector & p2, const tVector & p3, double eps = 1e-10);
-	template <typename T> static bool IsSame(const T & v1, const T & v2, double eps = 1e-5)
-	{
-		return (v1 - v2).norm() < eps;
-	}
+	static double RayCastT(const tVector & ori, const tVector & dir, const tVector & p1, const tVector & p2, const tVector & p3, double eps = 1e-10);
+
 };

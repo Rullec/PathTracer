@@ -28,6 +28,7 @@ void ScrollCallback(GLFWwindow* window, double xoff, double yoff);
 int main(int argc, char*   argv[])
 {
 	assert(argc == 2);
+	srand(13);
 	std::string conf = std::string(argv[1]);
 
  	char cCurrentPath[FILENAME_MAX];

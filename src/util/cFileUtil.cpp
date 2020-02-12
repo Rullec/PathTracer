@@ -95,7 +95,7 @@ std::string cFileUtil::GetExtension(const std::string& filename)
 {
 	// remove leading '.'
 	size_t dot_idx = 0;
-	for (dot_idx; dot_idx < filename.size(); ++dot_idx)
+	for (dot_idx=0; dot_idx < filename.size(); ++dot_idx)
 	{
 		if (filename[dot_idx] != '.')
 		{
@@ -400,7 +400,7 @@ std::string cFileUtil::ReadTextFile(FILE* f)
 	return text;
 }
 
-const std::string & cFileUtil::ExecuteCommand(const std::string & cmd)
+const std::string cFileUtil::ExecuteCommand(const std::string & cmd)
 {
 	std::array<char, 128> buffer;
     std::string result;

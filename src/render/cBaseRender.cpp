@@ -18,12 +18,27 @@ cBaseRender::cBaseRender(const std::string & a_): mConfPath(a_)
 	for (int i = 0; i < mClearColor.size(); i++) 
 		mClearColor[i] = render["ClearColor"][i].asDouble();
 
-	mVertexShaderPath = render["vertex_shader_path"].asString();
-	mFragmentShaderPath = render["fragment_shader_path"].asString();
+/*
+		"vertex_shader_normal": "src/render/glsl/normal.vert",
+		"fragment_shader_normal": "src/render/glsl/normal.frag",
+		"vertex_shader_face": "src/render/glsl/face.vert",
+		"geometry_shader_face": "src/render/glsl/face.geo",
+		"fragment_shader_face": "src/render/glsl/face.frag",
+*/
+	mVertexShaderPath_face = render["vertex_shader_face"].asString();
+	mGeometryShaderPath_face = render["geometry_shader_face"].asString();
+	mFragmentShaderPath_face = render["fragment_shader_face"].asString();
+	mVertexShaderPath_normal = render["vertex_shader_normal"].asString();
+	mFragmentShaderPath_normal = render["fragment_shader_normal"].asString();
+
 	mGroundPath = render["ground_path"].asString();
 	mGroundScale = render["ground_scale"].asDouble();
+	mGroundMove = mLightPos = tVector::Identity();
 	for(int i = 0; i < 3; i++)
+	{
 		mGroundMove[i] = render["ground_displacement"][i].asDouble();
+		mLightPos[i] = render["light_pos"][i].asDouble();
+	}
 	mEnableGround = render["enable_ground"].asBool();
 
 	mCamera = nullptr;
@@ -89,36 +104,22 @@ void cBaseRender::Init()
 	// AddTestCubeTex();
 	if(mEnableGround)
 		InitGround();
+
+	// set mLightPos
+	// std::cout <<"[debug] light pos = " << mLightPos.transpose() << std::endl;
+	SetLightPos(mLightPos);
 }
 
 void cBaseRender::InitShader()
 {
-	std::unique_ptr<cBaseShader> vertex_shader = (std::unique_ptr<cBaseShader>)(new cBaseShader(mVertexShaderPath, GL_VERTEX_SHADER)),
-		fragment_shader = (std::unique_ptr<cBaseShader>)(new cBaseShader(mFragmentShaderPath, GL_FRAGMENT_SHADER));
+	// create 2 shaders, in current context...
+	mShaderProgram_normal = CreateShader(mVertexShaderPath_normal, mFragmentShaderPath_normal);
+	mShaderProgram_face = CreateShader(mVertexShaderPath_face, mGeometryShaderPath_face, mFragmentShaderPath_face);
+}
 
-	// create shader program after shaders
-	int success = 1, logsize = 0;
-	char * infoLog = nullptr;
-	mShaderProgram = glCreateProgram();
-	glAttachShader(mShaderProgram, vertex_shader->GetShaderHandle());
-	glAttachShader(mShaderProgram, fragment_shader->GetShaderHandle());
-	// std::cout <<"[cBaseRender] vertex shader handle = " << vertex_shader->GetShaderHandle() << std::endl;
-	// std::cout <<"[cBaseRender] fragment shader handle = " << fragment_shader->GetShaderHandle() << std::endl;
-	glLinkProgram(mShaderProgram);
-	glGetProgramiv(mShaderProgram, GL_INFO_LOG_LENGTH, &logsize);
-	infoLog = new char[logsize + 1];
-	memset(infoLog, 0, sizeof(char) * (logsize + 1));
-	glGetProgramiv(mShaderProgram, GL_LINK_STATUS, &success);
-	if (GL_FALSE == success)
-	{
-		glGetProgramInfoLog(mShaderProgram, logsize + 1, NULL, infoLog);
-		std::cout << "[cBaseRender] Shaders Link Error: \n" << infoLog << std::endl;
-		exit(1);
-	}
-
-	// delete shaders after linking
-	vertex_shader.reset();
-	fragment_shader.reset();
+void cBaseRender::SetLightPos(const tVector & pos)
+{
+	mLightPos = pos;
 }
 
 void cBaseRender::Draw()
@@ -147,30 +148,62 @@ void cBaseRender::Draw()
 	
 	// non texture objs: faces, lines, points.
 	{
-		glUseProgram(mShaderProgram);
-		SetBool("texture_mode", false);
 
-		glBindVertexArray(mPixelsVAO);
-		glDrawArrays(GL_POINTS, 0, mPixelNum);
-
-		// std::cout <<"point num = " << mPointNum << std::endl;
-		glBindVertexArray(mPointsVAO);
-		SetBool("point_mode", true);
-		glDrawArrays(GL_POINTS, 0, mPointNum);
-		SetBool("point_mode", false);
-
-		glBindVertexArray(mLinesVAO);
-		glDrawArrays(GL_LINES, 0, mLineNum * 2);
-
-		//std::cout << "draw array: face num = " << mFaceNum << std::endl;;
-		glBindVertexArray(mFacesVAO);
-		glDrawArrays(GL_TRIANGLES, 0, mFaceNum * 3);
+		// non texture faces
+		{
+			glUseProgram(mShaderProgram_face);
+			SetBool(mShaderProgram_face, "texture_mode_face", false);
+			// SetBool(mShaderProgram_face, "point_mode", false);
+			SetVector3f(mShaderProgram_face, "camera_pos", mCamera->GetCameraPos());
+			SetVector3f(mShaderProgram_face, "light_pos", mLightPos);
+	{
+		SetMatrix(mShaderProgram_face, "ModelMat", tMatrix::Identity());
+		SetMatrix(mShaderProgram_face, "ViewMat", mCamera->GetViewMat());
+		SetMatrix(mShaderProgram_face, "ProjectMat", mCamera->GetProjMat());
+		SetVector3f(mShaderProgram_face, "camera_pos", mCamera->GetCameraPos());
 	}
 
-	// draw texture objs
+
+			glBindVertexArray(mFacesVAO);
+			glDrawArrays(GL_TRIANGLES, 0, mFaceNum * 3);
+		}	
+
+		// non texture lines and points
+		{
+			glUseProgram(mShaderProgram_normal);
+			SetBool(mShaderProgram_normal, "texture_mode", false);
+			SetBool(mShaderProgram_normal, "point_mode", false);
+				{
+		SetMatrix(mShaderProgram_normal, "ModelMat", tMatrix::Identity());
+		SetMatrix(mShaderProgram_normal, "ViewMat", mCamera->GetViewMat());
+		SetMatrix(mShaderProgram_normal, "ProjectMat", mCamera->GetProjMat());
+	}
+
+			glBindVertexArray(mPixelsVAO);
+			glDrawArrays(GL_POINTS, 0, mPixelNum);
+
+			// std::cout <<"point num = " << mPointNum << std::endl;
+			glBindVertexArray(mPointsVAO);
+			SetBool(mShaderProgram_normal, "point_mode", true);
+			glDrawArrays(GL_POINTS, 0, mPointNum);
+			SetBool(mShaderProgram_normal, "point_mode", false);
+
+			// std::cout <<"[draw] line num = " << mLineNum << std::endl;
+			glBindVertexArray(mLinesVAO);
+			glDrawArrays(GL_LINES, 0, mLineNum * 2);
+		}
+	}
+
+	// // draw texture faces: only face shader
 	{
-		SetBool("texture_mode", true);
-		glUseProgram(mShaderProgram);
+		glUseProgram(mShaderProgram_face);
+		SetBool(mShaderProgram_face, "texture_mode_face", true);
+	{
+		SetMatrix(mShaderProgram_face, "ModelMat", tMatrix::Identity());
+		SetMatrix(mShaderProgram_face, "ViewMat", mCamera->GetViewMat());
+		SetMatrix(mShaderProgram_face, "ProjectMat", mCamera->GetProjMat());
+		SetVector3f(mShaderProgram_face, "camera_pos", mCamera->GetCameraPos());
+	}
 		glBindVertexArray(mTexFacesVAO);
 
 		// 分obj绘制
@@ -182,18 +215,6 @@ void cBaseRender::Draw()
 			glBindTexture(GL_TEXTURE_2D, tex_info.mTexBind);
 			glDrawArrays(GL_TRIANGLES, NUM_VERTEX_PER_FACE * st, (ed - st) * NUM_VERTEX_PER_FACE);
 		}
-
-		// auto & tex_info = mTexInfo[0];
-		// {
-		// 	int st = tex_info.mOffsetSt,
-		// 		ed = tex_info.mOffsetEd;
-		// 	std::cout <<"[debug] st, ed = " << st <<" " << ed << ", bind = " << tex_info.mTexBind << std::endl;
-		// 	glBindTexture(GL_TEXTURE_2D, tex_info.mTexBind);
-		// 	glDrawArrays(GL_TRIANGLES, 0, 1 * NUM_VERTEX_PER_FACE);
-		// 	glDrawArrays(GL_TRIANGLES, 3, 1 * NUM_VERTEX_PER_FACE);
-		// }
-
-		// glDrawArrays(GL_TRIANGLES, 0, mTexFaceNum * NUM_VERTEX_PER_FACE);
 	}
 }
 
@@ -393,6 +414,7 @@ void cBaseRender::Reload()
 	// std::cout << std::rand() << "reload" << std::endl;
 	// reload pixels
 	{
+		// glUseProgram(mShaderProgram_normal);
 		glBindVertexArray(mPixelsVAO);
 		glBindBuffer(GL_ARRAY_BUFFER, mPixelsVBO);
 		glBufferData(GL_ARRAY_BUFFER, mPixelNum * tPixel::size * sizeof(float), mPixelBuffer, GL_STATIC_DRAW);
@@ -404,6 +426,8 @@ void cBaseRender::Reload()
 
 	// points
 	{
+		
+		// glUseProgram(mShaderProgram_normal);
 		glBindVertexArray(mPointsVAO);
 		glBindBuffer(GL_ARRAY_BUFFER, mPointsVBO);
 		glBufferData(GL_ARRAY_BUFFER, mPointNum * tVertex::size * sizeof(float), mPointBuffer, GL_STATIC_DRAW);
@@ -415,6 +439,9 @@ void cBaseRender::Reload()
 
 	// reload lines
 	{
+		
+		// glUseProgram(mShaderProgram_normal);
+		// std::cout <<"line num = " << mLineNum << std::endl;
 		glBindVertexArray(mLinesVAO);
 		glBindBuffer(GL_ARRAY_BUFFER, mLinesVBO);
 		glBufferData(GL_ARRAY_BUFFER, mLineNum * tEdge::size * sizeof(float), mLineBuffer, GL_STATIC_DRAW);
@@ -426,6 +453,7 @@ void cBaseRender::Reload()
 
 	// reload faces
 	{
+		// glUseProgram(mShaderProgram_face);
 		glBindVertexArray(mFacesVAO);
 		glBindBuffer(GL_ARRAY_BUFFER, mFacesVBO);
 		glBufferData(GL_ARRAY_BUFFER, mFaceNum * tFace::size * sizeof(float), mFaceBuffer, GL_STATIC_DRAW);
@@ -436,6 +464,9 @@ void cBaseRender::Reload()
 	}
 
 	{
+		// texture face = 
+		
+		// glUseProgram(mShaderProgram_normal);
 		glBindVertexArray(mTexFacesVAO);
 		glBindBuffer(GL_ARRAY_BUFFER, mTexFacesVBO);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * tFace::size * mTexFaceNum, mTexFaceBuffer, GL_STATIC_DRAW);
@@ -484,10 +515,19 @@ void cBaseRender::Reload()
 
 void cBaseRender::UpdateCamera()
 {
-	//std::cout << "[debug] cBaseRender::UpdateCamera \n";
-	tMatrix res = mCamera->GetRenderMat();
-	// std::cout <<"res = " << res << std::endl;
-	SetMatrix("MVP", res);
+	// std::cout <<"[debug] update camera = " << mCamera->GetCameraPos().transpose() << std::endl;
+	{
+		SetMatrix(mShaderProgram_face, "ModelMat", tMatrix::Identity());
+		SetMatrix(mShaderProgram_face, "ViewMat", mCamera->GetViewMat());
+		SetMatrix(mShaderProgram_face, "ProjectMat", mCamera->GetProjMat());
+		SetVector3f(mShaderProgram_face, "camera_pos", mCamera->GetCameraPos());
+	}
+	
+	{
+		SetMatrix(mShaderProgram_normal, "ModelMat", tMatrix::Identity());
+		SetMatrix(mShaderProgram_normal, "ViewMat", mCamera->GetViewMat());
+		SetMatrix(mShaderProgram_normal, "ProjectMat", mCamera->GetProjMat());
+	}
 }
 
 void cBaseRender::Clear()
@@ -499,19 +539,24 @@ void cBaseRender::Clear()
 	mPointNum = 0;
 }
 
-void cBaseRender::SetBool(const std::string & name, bool value) const
+void cBaseRender::SetBool(const unsigned int program,const std::string & name, bool value) const
 {
-	glUniform1i(glGetUniformLocation(mShaderProgram, name.c_str()), (int)value);
+	glUniform1i(glGetUniformLocation(program, name.c_str()), (int)value);
 }
 
-void cBaseRender::SetVector(const std::string name, const tVector & vector) const
+void cBaseRender::SetVector4f(const unsigned int program, const std::string name, const tVector & vector) const
 {
-	glUniform4d(glGetUniformLocation(mShaderProgram, name.c_str()), vector[0], vector[1], vector[2], vector[3]);
+	glUniform4f(glGetUniformLocation(program, name.c_str()), vector[0], vector[1], vector[2], vector[3]);
 }
 
-void cBaseRender::SetMatrix(const std::string name, const tMatrix & mat) const
+void cBaseRender::SetVector3f(const unsigned int program,const std::string name, const tVector & vector) const
 {
-	GLint pos = glGetUniformLocation(mShaderProgram, name.c_str());
+	glUniform3f(glGetUniformLocation(program, name.c_str()), vector[0], vector[1], vector[2]);
+}
+
+void cBaseRender::SetMatrix(const unsigned int program, const std::string name, const tMatrix & mat) const
+{
+	GLint pos = glGetUniformLocation(program, name.c_str());
 	if (pos == GL_INVALID_VALUE || pos == GL_INVALID_OPERATION)
 	{
 		std::cout << "[error] cBaseRender::SetMatrix failed" << std::endl;
@@ -639,4 +684,74 @@ void cBaseRender::AddMesh(std::shared_ptr<cBaseMesh> &mesh)
 		}
 	}
 	mNeedReload = true;
+}
+
+
+unsigned int cBaseRender::CreateShader(const std::string & v, const std::string & g, const std::string & f)
+{
+	// create geometry shader included
+	std::unique_ptr<cBaseShader> vertex_shader = (std::unique_ptr<cBaseShader>)(new cBaseShader(v, GL_VERTEX_SHADER)),
+		fragment_shader = (std::unique_ptr<cBaseShader>)(new cBaseShader(f, GL_FRAGMENT_SHADER)),
+		geometry_shader = (std::unique_ptr<cBaseShader>)(new cBaseShader(g, GL_GEOMETRY_SHADER));
+
+	// create shader program after shaders
+	int success = 1, logsize = 0;
+	char * infoLog = nullptr;
+	unsigned int shader_prog = glCreateProgram();
+	glAttachShader(shader_prog, vertex_shader->GetShaderHandle());
+	glAttachShader(shader_prog, geometry_shader->GetShaderHandle());
+	glAttachShader(shader_prog, fragment_shader->GetShaderHandle());
+	// std::cout <<"[cBaseRender] vertex shader handle = " << vertex_shader->GetShaderHandle() << std::endl;
+	// std::cout <<"[cBaseRender] fragment shader handle = " << fragment_shader->GetShaderHandle() << std::endl;
+	glLinkProgram(shader_prog);
+	glGetProgramiv(shader_prog, GL_INFO_LOG_LENGTH, &logsize);
+	infoLog = new char[logsize + 1];
+	memset(infoLog, 0, sizeof(char) * (logsize + 1));
+	glGetProgramiv(shader_prog, GL_LINK_STATUS, &success);
+	if (GL_FALSE == success)
+	{
+		glGetProgramInfoLog(shader_prog, logsize + 1, NULL, infoLog);
+		std::cout << "[cBaseRender] Shaders Link Error: \n" << infoLog << std::endl;
+		exit(1);
+	}
+
+	// delete shaders after linking
+	vertex_shader.reset();
+	fragment_shader.reset();
+	geometry_shader.reset();
+
+	return shader_prog;
+}
+
+unsigned int cBaseRender::CreateShader(const std::string & v, const std::string & f)
+{
+	// create geometry shader excluded
+	std::unique_ptr<cBaseShader> vertex_shader = (std::unique_ptr<cBaseShader>)(new cBaseShader(v, GL_VERTEX_SHADER)),
+		fragment_shader = (std::unique_ptr<cBaseShader>)(new cBaseShader(f, GL_FRAGMENT_SHADER));
+
+	// create shader program after shaders
+	int success = 1, logsize = 0;
+	char * infoLog = nullptr;
+	unsigned int shader_prog = glCreateProgram();
+	glAttachShader(shader_prog, vertex_shader->GetShaderHandle());
+	glAttachShader(shader_prog, fragment_shader->GetShaderHandle());
+	// std::cout <<"[cBaseRender] vertex shader handle = " << vertex_shader->GetShaderHandle() << std::endl;
+	// std::cout <<"[cBaseRender] fragment shader handle = " << fragment_shader->GetShaderHandle() << std::endl;
+	glLinkProgram(shader_prog);
+	glGetProgramiv(shader_prog, GL_INFO_LOG_LENGTH, &logsize);
+	infoLog = new char[logsize + 1];
+	memset(infoLog, 0, sizeof(char) * (logsize + 1));
+	glGetProgramiv(shader_prog, GL_LINK_STATUS, &success);
+	if (GL_FALSE == success)
+	{
+		glGetProgramInfoLog(shader_prog, logsize + 1, NULL, infoLog);
+		std::cout << "[cBaseRender] Shaders Link Error: \n" << infoLog << std::endl;
+		exit(1);
+	}
+
+	// delete shaders after linking
+	vertex_shader.reset();
+	fragment_shader.reset();
+
+	return shader_prog;
 }

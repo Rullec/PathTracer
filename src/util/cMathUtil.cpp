@@ -93,6 +93,27 @@ tVector cMathUtil::CalcAngularVelocity(const tQuaternion & old_rot,\
 	return vel;
 }
 
+bool cMathUtil::IsSame(const tVector & v1, const tVector & v2, const double eps)
+{
+	for(int i=0; i<v1.size(); i++) if(std::fabs(v1[i] - v2[i])>eps) return false;
+	return true;
+}
+
+bool cMathUtil::IsNormalized(const tVector & v)
+{
+	return std::abs(v.norm() - 1) < 1e-10;
+}
+
+bool cMathUtil::IsPoint(const tVector & v)
+{
+	return std::abs(v[3] - 1) < 1e-10;
+}
+
+bool cMathUtil::IsVector(const tVector & v)
+{
+	return std::abs(v[3]) < 1e-10;
+}
+
 bool cMathUtil::JudgeInRange(double val, double thre0, double thre1, double eps)
 {
 	bool res1 = (val > thre0 - eps) && (val < thre1 + eps);
@@ -104,6 +125,11 @@ bool cMathUtil::JudgeInRange(double val, double thre0, double thre1, double eps)
 	//	std::cout << val << " " << thre0 << " " << thre1 << std::endl;
 	//}
 	return final_res;
+}
+
+tVector cMathUtil::WiseProduct(const tVector & v1, const tVector &v2)
+{
+	return tVector(v1.array() * v2.array());
 }
 
 double cMathUtil::Radians(double degree)
@@ -131,4 +157,71 @@ tVector cMathUtil::RayCast(const tVector & ori, const tVector & dir,\
 		inter = ori + t * dir;
 	}
 	return inter;
+}
+
+
+double cMathUtil::RayCastT(const tVector & ori, const tVector & dir,\
+	const tVector & p1, const tVector & p2, const tVector & p3, double eps/* = 1e-5*/)
+{
+	Eigen::Matrix3d mat;
+	mat.col(0) = (p1 - p2).segment(0, 3);
+	mat.col(1) = (p1 - p3).segment(0, 3);
+	mat.col(2) = dir.segment(0, 3);
+	Eigen::Vector3d vec;
+	vec = (p1 - ori).segment(0, 3);
+	Eigen::Vector3d res = mat.inverse() * vec;
+	// std::cout << "res = " << res.transpose() << std::endl;
+	double beta = res[0], gamma = res[1], t = res[2], alpha = 1 - beta - gamma;
+	// std::cout <<"ray cast = " << res.transpose() << std::endl;
+	if(false == (0-eps < alpha && alpha < 1 + eps && 0-eps < beta && beta < 1+eps && 0-eps < gamma && gamma <1+eps && t >0-eps))
+	{
+		t = std::nan("");
+	}
+	
+	return t;
+}
+
+// sample from a hemisphere, implied by the normal vector
+tVector cMathUtil::SampleHemiSphereUniform(const tVector & normal, double & pdf)
+{
+	assert(std::fabs(normal[3]) < 1e-10);
+	assert(std::fabs(normal.norm() - 1) < 1e-10);
+
+	double xi1 = drand48(), xi2 = drand48();
+	double theta = std::acos(1 - xi1), phi = 2 * M_PI * xi2; 
+	tVector res = tVector(std::cos(theta) * std::cos(phi), std::sin(theta), -std::cos(theta) * std::sin(phi), 0);
+	pdf = 1.0 / (2 * M_PI);
+
+	tVector y_axis = tVector(0, 1, 0, 0);
+	tVector axis = y_axis.cross3(normal - y_axis).normalized();
+	double angle = std::acos(y_axis.dot(normal));
+	tQuaternion rot = cMathUtil::AxisAngleToQuaternion(axis * angle);
+	res = cMathUtil::QuatRotVec(rot, res);
+	return res;
+}
+
+tVector cMathUtil::SampleHemiSphereCosine(const tVector & normal, double & pdf)
+{
+	assert(std::fabs(normal[3]) < 1e-10);
+	assert(std::fabs(normal.norm() - 1) < 1e-10);
+
+	double xi1 = drand48(), xi2 = drand48();
+	double theta = 0.5 * std::acos(1 - 2 * xi1), phi = 2 * M_PI * xi2; 
+	tVector res = tVector(std::cos(theta) * std::cos(phi), std::sin(theta), -std::cos(theta) * std::sin(phi), 0);
+
+	// rotate 
+	tVector y_axis = tVector(0, 1, 0, 0);
+	tVector axis = y_axis.cross3(normal - y_axis).normalized();
+	double angle = std::acos(y_axis.dot(normal));
+	tQuaternion rot = cMathUtil::AxisAngleToQuaternion(axis * angle);
+	res = cMathUtil::QuatRotVec(rot, res);
+
+	return res;
+}
+
+tVector cMathUtil::QuatRotVec(const tQuaternion & quater, const tVector & vec)
+{
+	tVector res = tVector::Zero();
+	res.segment(0, 3) = quater * vec.segment(0, 3);
+	return res;
 }

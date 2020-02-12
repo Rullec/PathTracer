@@ -85,6 +85,22 @@ struct tFace {
 		mUserPtr = nullptr;
 	}
 
+	tFace(const tFace & f)
+	{
+		mFaceId = f.mFaceId;
+		mMaterialId = f.mMaterialId;
+		for(int i=0; i<NUM_VERTEX_PER_FACE; i++)
+		{
+			mVertexIdList[i] = f.mVertexIdList[i];
+			mVertexPtrList[i] = f.mVertexPtrList[i];
+		}
+		for(int i=0; i<NUM_EDGE_PER_FACE; i++)
+		{
+			mEdgeIdList[i] = f.mEdgeIdList[i];
+			mEdgePtrList[i] = f.mEdgePtrList[i];
+		}
+		mUserPtr = f.mUserPtr;
+	}
 	// attach info for Z buffer
 	void * mUserPtr;
 };
@@ -218,6 +234,7 @@ public:
 	
 	void AddMaterial(tMaterial *);
 	tMaterial * GetMaterial(int id);
+	int GetMaterialNum();
 	virtual void PrintInfo() override ;
 protected:
 

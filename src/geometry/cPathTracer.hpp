@@ -2,6 +2,8 @@
 #include <geometry/cBaseMesh.h>
 
 class cBaseCamera;
+class cLight;
+class cBxDF;
 class cPathTracer
 {
 public: 
@@ -9,12 +11,14 @@ public:
     cPathTracer(const std::string &conf);
     void Init(std::shared_ptr<cBaseMesh> scene_mesh, std::shared_ptr<cBaseCamera> camera);
     void Process();
-    void GetDrawResources(std::vector<tLine> & line, std::vector<tVertex> & pts);
+    void GetDrawResources(std::vector<tLine> & line, std::vector<tVertex> & pts, std::vector<tFace> & faces);
     
 private:
     std::shared_ptr<cObjMesh> mSceneMesh;
+    std::vector<std::shared_ptr<cLight>> mLight;
+    std::vector<std::shared_ptr<cBxDF>> mBxDF;
     std::shared_ptr<cBaseCamera> mCamera;
-
+    
     // camera parameters
     int mWidth, mHeight;
     double mFov, mNear;
@@ -22,11 +26,14 @@ private:
     // ray tracing configuration
     bool mAccelStructure;
     bool mRayDisplay;
+    bool mOpenResult;
     std::string mResultPath;
     int mDivide;
     int mMaxDepth;
-
+    int mSamples;
+    
     // storage
+    const std::string mConfPath;
     tVector * mScreenPixel;
     tRay * mScreenRay;
     std::vector<tAABB> mAABBLst;
@@ -36,8 +43,12 @@ private:
     // methods
     void ParseConfig(const std::string & conf);
     void BuildAccelStructure();
+    void InitBxDF();
+
     void GenerateRay();
     void RayTracing();
-    tVector RayCastSingleRay(const tRay & ray, tVector & pt, int depth)const;
+    tVector RayTracePrimaryRay(tRay & ray, int depth, const int mMaxDepth,const bool mAccelStructure,const std::shared_ptr<cObjMesh> mSceneMesh,const std::vector<tAABB> & mAABBLst, const int samples);
+    static bool RayCast(const tRay & ray, tVector & pt, tFace ** target_face, const bool mAccelStructure,const std::shared_ptr<cObjMesh> mSceneMesh,const std::vector<tAABB> & mAABBLst);
+    static bool VisTestForLight(const tVector & p1, const tVector & p2,const bool mAccelStructure,const std::shared_ptr<cObjMesh> mSceneMesh,const std::vector<tAABB> & mAABBLst);
     void OutputImage();
 };

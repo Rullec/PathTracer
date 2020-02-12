@@ -94,3 +94,40 @@ double cGeoUtil::CalcSlope2D(double x1, double y1, double x2, double y2)
 	}
 	return (y2 - y1) / (x2 - x1);
 };
+
+tVector cGeoUtil::CalcNormalFrom3Pts(const tVector &p1, const tVector &p2, const tVector &p3)
+{
+	tVector normal = (p2 - p1).cross3(p3 - p2).normalized();
+	assert(std::abs(normal.norm() - 1) < 1e-5);
+
+	return normal;
+}
+
+/*
+	normal: the normal vector of a surface
+	incoming: the incident light, from an remote pt to the point lying on the surface
+*/
+tVector cGeoUtil::Reflect(const tVector & normal, const tVector & incoming)
+{
+	try{
+		if(false == cMathUtil::IsNormalized(normal))
+		{
+			std::cout <<"normal = " << normal.transpose() << std::endl;
+			exit(1);
+		}
+		if(false == cMathUtil::IsNormalized(incoming))
+		{
+			std::cout <<"incoming = " << incoming.transpose() << std::endl;
+			exit(1);
+		}
+		if(false == (normal.dot(incoming) < 0))
+		{
+			// std::cout <<"[reflect] normal = " << normal.transpose() <<", income = " << incoming.transpose() << std::endl;
+			// exit(1);
+		}
+	}
+	catch(...){
+		
+	};
+	return 2 * (normal.dot(-incoming)) * normal + incoming;
+}

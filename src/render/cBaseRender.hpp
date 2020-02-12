@@ -45,6 +45,7 @@ public:
 	void AddMesh(std::shared_ptr<cBaseMesh> &mesh);
 
 	void SetCamera(std::shared_ptr<cBaseCamera> & camera);
+	void SetLightPos(const tVector &);
 	void InitGround();
 
 protected:
@@ -52,14 +53,16 @@ protected:
 	// pipeline essentials
 	const std::string mConfPath;
 	tVector mClearColor;
-	std::string mVertexShaderPath, mFragmentShaderPath;
+	std::string mVertexShaderPath_face, mGeometryShaderPath_face, mFragmentShaderPath_face;
+	std::string mVertexShaderPath_normal, mFragmentShaderPath_normal;
 	bool mEnableGround;
 	std::string mGroundPath;
 	double mGroundScale;
 	tVector mGroundMove;
-	unsigned int mShaderProgram;
+	unsigned int mShaderProgram_normal, mShaderProgram_face;
 	enum eRenderStatus mRenderStatus;
 	std::shared_ptr<cBaseCamera> mCamera;
+	tVector mLightPos;
 
 	GLuint mPixelsVAO, mPixelsVBO;
 	GLuint mPointsVAO, mPointsVBO;
@@ -106,13 +109,15 @@ protected:
 	void UpdateCamera();
 
 	// set uniform values
-	void SetBool(const std::string & name, bool value) const;
-	void SetVector(const std::string, const tVector & vector) const;
-	void SetMatrix(const std::string, const tMatrix & mat) const;
+	void SetBool(const unsigned int, const std::string & name, bool value) const;
+	void SetVector3f(const unsigned int, const std::string, const tVector & vector) const;
+	void SetVector4f(const unsigned int, std::string, const tVector & vector) const;
+	void SetMatrix(const unsigned int, const std::string, const tMatrix & mat) const;
 
 	// test code, need deleted
 	void AddTestCubeTex();
-
+	static unsigned int CreateShader(const std::string & v, const std::string & g,const std::string & f);
+	static unsigned int CreateShader(const std::string & v, const std::string & f);
 	// // Add subroutines
 	// void AddTextureMesh();
 	// void AddNonTextureMesh();

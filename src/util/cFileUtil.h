@@ -33,7 +33,7 @@ public:
 	static bool WriteMatrix(const Eigen::MatrixXd& mat, const std::string& out_filename);
 
 	static bool AppendText(const std::string& str, const std::string& out_filename);
-	static const std::string & ExecuteCommand(const std::string & str);
+	static const std::string ExecuteCommand(const std::string & str);
 private:
 	static std::string ReadTextFile(FILE* f);
 };

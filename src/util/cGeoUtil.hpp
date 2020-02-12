@@ -16,4 +16,7 @@ public:
 	static bool CalcLineLineIntersection(double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4, double &ixOut, double &iyOut);
 	static bool CalcLineLineIntersection(double x1, double y1, double x2, double y2, double y0, double &ixOut);
 	static double CalcSlope2D(double x1, double y1, double x2, double y2);
+
+	static tVector CalcNormalFrom3Pts(const tVector &p1, const tVector &p2, const tVector &p3);
+	static tVector Reflect(const tVector & normal, const tVector & incoming);
 };

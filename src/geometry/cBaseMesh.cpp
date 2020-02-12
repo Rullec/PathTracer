@@ -557,3 +557,9 @@ tMaterial * cObjMesh::GetMaterial(int id)
 	}
 	return mMaterialList[id];
 }
+
+
+int cObjMesh::GetMaterialNum()
+{
+	return mMaterialList.size();
+}

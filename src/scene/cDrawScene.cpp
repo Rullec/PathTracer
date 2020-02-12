@@ -61,8 +61,6 @@ void cDrawScene::Update()
 	{
 		mRender->Clear();
 		DrawScene();
-
-		DrawAxis();
 		mDataReload = false;
 	}
 
@@ -78,7 +76,8 @@ void cDrawScene::ParseConfig(const std::string & conf)
 
 void cDrawScene::DrawScene()
 {
-
+	// std::cout <<"add axis\n" << std::endl;
+	DrawAxis();
 }
 
 void cDrawScene::DrawAxis()
