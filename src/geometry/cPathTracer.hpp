@@ -8,27 +8,36 @@ public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
     cPathTracer(const std::string &conf);
     void Init(std::shared_ptr<cBaseMesh> scene_mesh, std::shared_ptr<cBaseCamera> camera);
-    void Update(std::vector<tLine> & lines, std::vector<tVertex> &pts);
-    void GetRayLines(std::vector<tLine> &line);
+    void Process();
+    void GetDrawResources(std::vector<tLine> & line, std::vector<tVertex> & pts);
     
 private:
-    std::shared_ptr<cBaseMesh> mSceneMesh;
+    std::shared_ptr<cObjMesh> mSceneMesh;
     std::shared_ptr<cBaseCamera> mCamera;
-    tVector mCameraPos;
-    bool mAccelStructure;
+
+    // camera parameters
     int mWidth, mHeight;
     double mFov, mNear;
-    int mDivide;
 
-    tVector * mScreen;
+    // ray tracing configuration
+    bool mAccelStructure;
+    bool mRayDisplay;
+    std::string mResultPath;
+    int mDivide;
+    int mMaxDepth;
+
+    // storage
+    tVector * mScreenPixel;
     tRay * mScreenRay;
     std::vector<tAABB> mAABBLst;
+    std::vector<tLine> mDrawLines;
+    std::vector<tVertex> mDrawPoints;
 
     // methods
     void ParseConfig(const std::string & conf);
     void BuildAccelStructure();
-    void UpdatePrimaryRay();
-    void RayCastPrimaryRay(std::vector<tLine> & lines, std::vector<tVertex> & pts)const;
-    void RayCastSingleRay(const tRay & ray, tVector & pt)const;
-    void DispatchFaceToAABB(const tFace * face);
+    void GenerateRay();
+    void RayTracing();
+    tVector RayCastSingleRay(const tRay & ray, tVector & pt, int depth)const;
+    void OutputImage();
 };

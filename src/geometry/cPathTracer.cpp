@@ -5,6 +5,7 @@
 #include <util/cFileUtil.h>
 #include <util/cJsonUtil.hpp>
 #include <omp.h>
+#define DEBUG_MODE
 
 cPathTracer::cPathTracer(const std::string &conf)
 {
@@ -19,20 +20,30 @@ void cPathTracer::Init(std::shared_ptr<cBaseMesh> scene_mesh, std::shared_ptr<cB
         exit(1);
     }
 
-    mSceneMesh = scene_mesh; 
+    mSceneMesh = std::dynamic_pointer_cast<cObjMesh>(scene_mesh); 
+    if(mSceneMesh == nullptr)
+    {
+        std::cout <<"[error] cPathTracer::Init: No obj mesh\n";
+        exit(1);
+    }
+
     mCamera = camera;
 
     // std::cout <<"[debug] cPathTracer::Init begin\n";
     mCamera->GetCameraScene(mWidth, mHeight, mFov, mNear);
-    mCameraPos = mCamera->GetCameraPos();
+
     // std::cout <<"[debug] cPathTracer::Init width, height = " << mWidth <<" " << mHeight << ", fov = " << mFov << ", near = " << mNear << std::endl;
-    mScreen = new tVector[mWidth * mHeight];
+    mScreenPixel = new tVector[mWidth * mHeight];
     mScreenRay = new tRay[mWidth * mHeight];
 
     if(mAccelStructure)
     {
         BuildAccelStructure();
     }
+
+    // init draw resources
+    mDrawLines.clear();
+    mDrawPoints.clear();
 }
 
 void RayToLine(const tRay & ray, tLine & line)
@@ -41,7 +52,7 @@ void RayToLine(const tRay & ray, tLine & line)
     line.mDest = ray.GetDir() * 1e4 + line.mOri;
 }
 
-void cPathTracer::Update(std::vector<tLine> & rays, std::vector<tVertex>& pts)
+void cPathTracer::Process()
 {
     if(mCamera == nullptr || mSceneMesh == nullptr)
     {
@@ -49,45 +60,14 @@ void cPathTracer::Update(std::vector<tLine> & rays, std::vector<tVertex>& pts)
         exit(1);
     }
 
-//     rays = glo_lines;
-// {
-// //     -0.5 -0.5  0.5    1
-// //  
-// //
-//     tVertex v[3];
-//     v[0].mPos = tVector(-0.5, -0.5,  0.5,    1);
-//     v[1].mPos = tVector(0.5, -0.5,  0.5,    1);
-//     v[2].mPos = tVector( 0.5, 0.5, 0.5,   1);
-//     tFace * face = new tFace();
-//     face->mVertexPtrList[0] = v;
-//     face->mVertexPtrList[1] = v + 1;
-//     face->mVertexPtrList[2] = v+2;
-
-//     tAABB box;
-//     box.bound[0] = Eigen::Vector2d(0, 0.5001);
-//     box.bound[1] = Eigen::Vector2d(-0.5001, 0);
-//     box.bound[2] = Eigen::Vector2d(0.25, 0.5001);
-
-//     if(box.intersect(face) == false)
-//     {
-//         std::cout << " error\n";
-//         exit(1);
-//     }
-// }
     // 测试
-    UpdatePrimaryRay();
+    GenerateRay();
 
-    std::cout <<"[debug] begin ray cast primary rays\n";
-    RayCastPrimaryRay(rays, pts);
-
-    // rays.resize(mWidth * mHeight);
-    // for(int i=0; i< mWidth * mHeight; i++)
-    // {
-    //     RayToLine(mScreenRay[i], rays[i]);
-    // }
+    // std::cout <<"[debug] begin ray cast primary rays\n";
+    RayTracing();
 }
 
-void cPathTracer::UpdatePrimaryRay()
+void cPathTracer::GenerateRay()
 {
     /*
         Update Primary Ray: https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-generating-camera-rays/generating-camera-rays
@@ -186,109 +166,102 @@ void cPathTracer::ParseConfig(const std::string & conf)
 
     mAccelStructure =  path_tracer_json["EnableAccel"].asBool();
     mDivide = path_tracer_json["Subdivide"].asInt();
-    // std::cout <<"[debug] accel = " << mAccelStructure<<std::endl;
+    mResultPath = path_tracer_json["ResultPath"].asString();
+    mRayDisplay = path_tracer_json["EnableRayDisplay"].asBool();
+    mMaxDepth = path_tracer_json["Depth"].asInt();
+    assert(mMaxDepth > 0);
+    assert(mResultPath.size() > 0);
+    // std::cout <<"[debug] mResultPath = " << mResultPath << std::endl;
+    // exit(1);
 }
 
 
-void cPathTracer::GetRayLines(std::vector<tLine> &lines)
+void cPathTracer::GetDrawResources(std::vector<tLine> & line, std::vector<tVertex> & pts)
 {
-    // line.resize(mHeight * mWidth);
-    lines.clear();
-    for(int i=0; i< mHeight * mWidth; i++)
-    {
-        // if(250 <= i / mWidth&& i / mWidth <= 262 &&250 <= i%mWidth && i%mWidth <=262)
-        {
-            tLine line;
-            line.mOri = mScreenRay[i].GetOri();
-            line.mDest = mScreenRay[i].GetDir() + mScreenRay[i].GetOri();
-            line.mColor = tVector(0.2, 0.3, 0.4, 0.5);
-            lines.push_back(line);
-
-        }
-        // tRay & ray = mScreenRay[i];
-        // line[i].mOri = ray.mOri;
-        // line[i].mDest = ray.mDir * 100 + ray.mOri;
-        // line[i].mColor = tVector(0.2, 0.3, 0.4, 0.5);
-    }
-    // std::cout <<"[debug] cPathTracer::GetRayLines " << line.size() << std::endl;
+    line = mDrawLines;
+    pts = mDrawPoints;
 }
 
-void cPathTracer::RayCastPrimaryRay(std::vector<tLine> & lines, std::vector<tVertex> & pts)const
+void cPathTracer::RayTracing()
 {
+    std::cout <<"[log] cPathTracer::RayCast begin\n";
     cTimeUtil::Begin();
-    // collect all rays
-    // tRay ray = mScreenRay[mWidth * mHeight / 2 + mWidth / 2];
-    // ray.mOri = tVector(0 ,0, 0, 1);
-    // ray.mDir = tVector::Random();
 
     std::vector<tFace *> &faces = mSceneMesh->GetFaceList();
-    std::cout <<"[debug] RayCast face num = " << faces.size() << std::endl;
-    const std::string log = "raycast.log";
-    cFileUtil::ClearFile(log);
-    FILE * fout = cFileUtil::OpenFile(log, "w");
 
-#pragma omp parallel for
-    for(int i=0; i < mWidth * mHeight; i++)
+    // for(int i=0; i < mWidth * mHeight; i++)
+    int inter_num = 0;
+    for(int x = 0; x< mHeight; x++)
     {
-        if(i%10 !=0) continue;
-        printf("\rprogress: %.3f%", i * 100.0 / (mWidth * mHeight));
-        const tRay & ray = mScreenRay[i];
-        tVector pos = tVector::Ones() * std::nan("");
-        RayCastSingleRay(ray, pos);
-
-        if(pos.hasNaN() == false)
+        printf("\rprogress: %.3f%", x * 100.0 / (mHeight));
+#pragma omp parallel for schedule(static)
+        for(int y = 0; y< mWidth; y++)
         {
-            tLine line;
-            tVertex vertex;
-            // std::cout << pos.transpose() << std::endl;
-            line.mOri = ray.GetOri();
-            line.mDest = ray.GetOri() + 10e4 * ray.GetDir();
-            vertex.mPos = pos;
-            vertex.mColor = tVector(0.5, 0.5, 0.5, 1);
-
+            // if(i%10 !=0) continue;
+            int i = x * mWidth + y;
+            const tRay & ray = mScreenRay[i];
+            tVector pos = tVector::Ones() * std::nan("");
+            mScreenPixel[i] = RayCastSingleRay(ray, pos, 0);
+            // if(mScreenPixel[i].norm() > 1e-3)
+            // {
+            //     std::cout <<"get color = " << mScreenPixel[i].transpose() << " ";
+            // } 
+#ifdef DEBUG_MODE
+            if(pos.hasNaN() == false)
+            {
+                if(i % 100 == 0 && mRayDisplay == true)
+                {
+                    tLine line;
+                    tVertex vertex;
+                    // std::cout << pos.transpose() << std::endl;
+                    line.mOri = ray.GetOri();
+                    line.mDest = ray.GetOri() + 10e4 * ray.GetDir();
+                    line.mColor = tVector(0, 1, 0, 1);
+                    vertex.mPos = pos;
+                vertex.mColor = tVector(0.5, 0.5, 0.5, 1);
 #pragma omp critical
-            lines.push_back(line);
+                    mDrawLines.push_back(line);
+                    mDrawPoints.push_back(vertex);
+                }
 #pragma omp critical
-            pts.push_back(vertex);
-            // std::cout << i << std::endl;
+                inter_num++;
+            }
+#endif DEBUG_MODE
         }
     }
-    std::cout << "total tays = " << mHeight * mWidth << std::endl;
-    // {
-    //     // 范围测试
-    //     tVector upper, lower;
-    //     mSceneMesh->GetBound(upper, lower);
-    //     std::cout <<"mesh range " << lower.transpose() <<" to " << upper.transpose() << std::endl;
-    //     for(auto & pt : pts)
-    //     {
-    //         auto & pos = pt.mPos;
-    //         bool exceed = false;
-    //         for(int i=0; i<3; i++)
-    //         {
-    //             if(pos[i] > upper[i] + 1e-5 || pos[i] < lower[i] - 1e-5)
-    //             exceed = true;
-    //         }
-    //         if(exceed == true)
-    //         {
-    //             std::cout <<"[error] illegal inter " << pos.transpose() << std::endl;
-    //         }
-    //     }
-    // }
-    // do ray cast for this ray
-    // 把ray cast结果绘制出来: 要求光线line和交点全部得到
+    
+    // std::cout << "[debug] total rays = " << mHeight * mWidth << std::endl;
+    printf("\n");
+    std::cout <<"intersections = " << inter_num << std::endl;
+   
+
+    std::cout <<"[log] cPathTracer::RayCast end\n";
     cTimeUtil::End();
+
+    OutputImage();
 }
 
-void cPathTracer::RayCastSingleRay(const tRay & ray, tVector & pt)const
+/*
+    return color
+*/
+tVector cPathTracer::RayCastSingleRay(const tRay & ray,tVector & pt, int depth)const
 {
+    tVector color = tVector::Zero(); 
+    // 如果超过最大深度，就返回一个零
+    if(depth >= mMaxDepth) return color;
+
+    // 否则，开始判断
     pt = tVector::Ones() * std::nan("");
-    std::vector<tFace *> & faces = mSceneMesh->GetFaceList();
     double dist = std::numeric_limits<double>::max();
+    std::vector<tFace *> & full_faces = mSceneMesh->GetFaceList();
+    tFace * target_face = nullptr;
+
+    // find the nearest intersection and corresponding located face
     if(mAccelStructure == false)
     {
         // std::cout <<" ray ori = " << ray.GetOri().transpose() << std::endl;
         // std::cout <<"ray dir = " << ray.GetDir().transpose() << std::endl;
-        for(auto &x : faces)
+        for(auto &x : full_faces)
         {
             tVector p = cMathUtil::RayCast(ray.GetOri(), ray.GetDir(), x->mVertexPtrList[0]->mPos,
                 x->mVertexPtrList[1]->mPos,
@@ -297,6 +270,7 @@ void cPathTracer::RayCastSingleRay(const tRay & ray, tVector & pt)const
             {
                 pt = p;
                 dist = (p - ray.GetOri()).norm();
+                target_face = x;
             }
         }
     }
@@ -305,24 +279,35 @@ void cPathTracer::RayCastSingleRay(const tRay & ray, tVector & pt)const
         // ray-aabb intersect -> ray face intersect
         for(auto & box : mAABBLst)
         {
-            if(box.intersect(ray) == true)
+            if(box.intersect(ray) == false) continue;
+            for(auto & id : box.mFaceId)
             {
-                for(auto & x : faces)
+                auto & x =  full_faces[id];
+                tVector p = cMathUtil::RayCast(ray.GetOri(), ray.GetDir(), x->mVertexPtrList[0]->mPos,
+                    x->mVertexPtrList[1]->mPos,
+                    x->mVertexPtrList[2]->mPos);
+                if(p.hasNaN() == false && (p - ray.GetOri()).norm() < dist)
                 {
-                    tVector p = cMathUtil::RayCast(ray.GetOri(), ray.GetDir(), x->mVertexPtrList[0]->mPos,
-                        x->mVertexPtrList[1]->mPos,
-                        x->mVertexPtrList[2]->mPos);
-                    if(p.hasNaN() == false && (p - ray.GetOri()).norm() < dist)
-                    {
-                        pt = p;
-                        dist = (p - ray.GetOri()).norm();
-                    }
+                    pt = p;
+                    dist = (p - ray.GetOri()).norm();
+                    target_face = x;
                 }
             }
         }
     }
     
-    
+    // judge color if 
+    if(pt.hasNaN() == false)
+    {
+        int mat_id = target_face->mMaterialId;
+        if(mat_id != -1) 
+            color = mSceneMesh->GetMaterial(mat_id)->diffuse;
+        else
+            color = tVector(1, 1, 1, 1);
+        // std::cout <<"get color = " << color.transpose() << std::endl;
+    }
+
+    return color;
 }
 
 void cPathTracer::BuildAccelStructure()
@@ -337,8 +322,10 @@ void cPathTracer::BuildAccelStructure()
 
     tVector upper, lower;
     mSceneMesh->GetBound(upper, lower);
-    for(int i=0; i<3; i++) upper[i] +=1e-3, lower[i]-=1e-3;
-    std::cout <<"[debug] upper = " << upper.transpose() <<", lower = " << lower.transpose() << std::endl;
+    for(int i=0; i<3; i++) upper[i] +=1e-5, lower[i]-=1e-5;
+    // std::cout <<"[debug] upper = " << upper.transpose() <<", lower = " << lower.transpose() << std::endl;
+    
+    // divide the whole space
     tAABB box;
     mAABBLst.clear();
     int id[3] = {0, 0, 0};
@@ -357,113 +344,67 @@ void cPathTracer::BuildAccelStructure()
 
     // dispatch all faces to these AABB
     std::vector<tFace *> & faces = mSceneMesh->GetFaceList();
-    // std::cout << "Face num = " << faces.size() << std::endl;
 #pragma omp parallel for
     for(int i=0; i<faces.size(); i++)
     {
-        // std::cout <<"dispatch face " << std::endl;
-        DispatchFaceToAABB(faces[i]);
+        auto & face = faces[i];
+        bool find_box = false;
+        for(int i=0; i<mAABBLst.size(); i++)
+        {
+            auto &box = mAABBLst[i];
+            // std::cout <<"find " << i << std::endl;
+            if(true == box.intersect(face))
+            {
+                find_box = true;
+                // std::cout <<"intersect good =  " << i << std::endl;
+            #pragma omp critical
+                box.mFaceId.push_back(face->mFaceId);
+            }
+        }
+
+        // check and verify
+        if(false == find_box)
+        {
+            std::cout <<"[error] find box for face failed" << std::endl;
+            for(int i=0; i<NUM_VERTEX_PER_FACE; i++)
+                std::cout << face->mVertexPtrList[i]->mPos.transpose() << std::endl;
+
+            std::cout << "all boxes info\n";
+            for(auto &box : mAABBLst)
+            {
+                std::cout <<"-----------\n";
+                std::cout <<"box x range = " << box.bound[0].transpose() << std::endl;
+                std::cout <<"box y range = " << box.bound[1].transpose() << std::endl;
+                std::cout <<"box z range = " << box.bound[2].transpose() << std::endl;
+            }
+            exit(1);
+        }
     }
 
-    // 查询占空比
-    int num = 0;
-    std::vector<tAABB>::iterator it = mAABBLst.begin();
-    std::cout << "generate aabb num = " << mAABBLst.size() << std::endl;
-    for(int i=0; i<mAABBLst.size(); i++)
-    {
-        if(mAABBLst[i].mFaceId.size() == 0)
-        {
-            num++;
-            it = mAABBLst.erase(it);
-        }
-        else
-        {
-            it++;
-        }
-        
-    }
-    std::cout << "non-empty aabb num = " << mAABBLst.size() << std::endl;
-
-
-    // // 绘制所有鸽子
-    // for(auto & box : mAABBLst)
-    // {
-    //     std::vector<tLine> subline;
-    //     BuildLinesForBox(subline, box);
-    //     glo_lines.insert(glo_lines.end(), subline.begin(), subline.end());
-    // }
+    // remove all empty boxes
+    mAABBLst.erase(std::remove_if(mAABBLst.begin(), mAABBLst.end(), [](const tAABB & box) { return box.mFaceId.size() == 0; }), mAABBLst.end());
 }
 
-void cPathTracer::DispatchFaceToAABB(const tFace * face)
+void cPathTracer::OutputImage()
 {
-    // std::cout <<"dispatch face = " << face->mFaceId << std::endl;
-    bool find_box = false;
-    for(int i=0; i<mAABBLst.size(); i++)
+    cFileUtil::ClearFile(mResultPath);
+    FILE *f = cFileUtil::OpenFile(mResultPath, "w");
+    fprintf(f, "P3\n%d %d\n%d\n", mWidth, mHeight, 255);
+    for (int i=0; i<mHeight * mWidth; i++)
     {
-        auto &box = mAABBLst[i];
-        // std::cout <<"find " << i << std::endl;
-        if(true == box.intersect(face))
-        {
-            find_box = true;
-            // std::cout <<"intersect good =  " << i << std::endl;
-#pragma omp critical
-            box.mFaceId.push_back(face->mFaceId);
-        }
+        fprintf(f,"%d %d %d ", static_cast<int>(mScreenPixel[i][0] * 255),
+            static_cast<int>(mScreenPixel[i][1] * 255),
+            static_cast<int>(mScreenPixel[i][2] * 255));
+        // std::cout <<"output " << mScreenPixel[i].transpose() << std::endl;
     }
 
-    if(false == find_box)
-    {
-        std::cout <<"[error] find box for face failed" << std::endl;
-        for(int i=0; i<NUM_VERTEX_PER_FACE; i++)
-            std::cout << face->mVertexPtrList[i]->mPos.transpose() << std::endl;
+    cFileUtil::CloseFile(f);
+    std::cout <<"[debug] output img to " << mResultPath <<", finished\n";
 
-        std::cout << "all boxes info\n";
-        for(auto &box : mAABBLst)
-        {
-            std::cout <<"-----------\n";
-            std::cout <<"box x range = " << box.bound[0].transpose() << std::endl;
-            std::cout <<"box y range = " << box.bound[1].transpose() << std::endl;
-            std::cout <<"box z range = " << box.bound[2].transpose() << std::endl;
-        }
-        exit(1);
-    }
-    // auto FromGroupToId = [](tVector & v, int divide) 
-    // { 
-    //     return v[0] * divide * divide + v[1] * divide + v[2];
-    // };
-    // assert(NUM_VERTEX_PER_FACE == 3);
-    // tVertex * const *  v_lst = face->mVertexPtrList;
-    // tVector lower, upper;
-    // mSceneMesh->GetBound(lower, upper);
-
-    // tVector group[3];
-    // for(int i=0; i< 3; i++)
-    // {
-    //     group[i].setZero();
-    //     tVector cur_pos = v_lst[i]->mPos;
-    //     for(int j=0; j<3; j++) // for x y z 3 dims
-    //         group[i][j] = static_cast<int>((cur_pos[j] - lower[j]) / ((upper[j] - lower[j]) / mDivide));
-    // }
-
-    // // if 3 points are in the same cube
-    // if(cMathUtil::IsSame(group[0], group[1]) && cMathUtil::IsSame(group[0], group[2]))
-    // {
-    //     int access_id = FromGroupToId(group[0], mDivide);
-    //     // std::cout << "id = " << access_id << std::endl;
-    //     if(mAABBLst.size() <= access_id)
-    //     {
-    //         std::cout << "error mAABB list = " << mAABBLst.size() << std::endl;
-    //         exit(1);
-    //     }
-    //     mAABBLst[access_id].mFaceId.push_back(face->mFaceId);
-    // }
-    // else
-    // {
-    //     // else, if 3 points are in seperate cubes
-    //     // search for all cubes
-    //     // std::cout << "aabb list = " << mAABBLst.size( ) << std::endl;
-    //     // for(auto & box : mAABBLst)
-
-    //     // std::cout <<"aabb end \n";
-    // }
+    // execute command to open it...
+#ifdef __APPLE__
+    // std::cout <<"try to execute " << cmd << std::endl;
+    std::string res = cFileUtil::ExecuteCommand("open " + mResultPath);
+    // std::cout <<"Res = " << res << std::endl;
+#endif
 }

@@ -58,11 +58,14 @@ void cRTScene::DrawScene()
     // 2. ray cast
     std::vector<tLine> rays;
     std::vector<tVertex> pts;
-    mTracer->Update(rays, pts);
+    // mTracer->Update(rays, pts);
+    mTracer->Process();
+    mTracer->GetDrawResources(rays, pts);
+    std::cout <<"get draw res = " << rays.size() <<" " << pts.size() << std::endl;
 
     for(auto & ray : rays)
         mRender->AddLine(ray);
-    std::cout <<"ray inter = " << pts.size() << std::endl;
+    // std::cout <<"ray inter = " << pts.size() << std::endl;
     for(int i=0 ;i<pts.size(); i++)
     {
         mRender->AddPoint(pts[i]);
