@@ -92,7 +92,7 @@ void cSquareLight::Sample_Li(const tVector & ref, tRay & wi_ray, double * pdf)
         // wi_ray: from light to reference point
         // assert(cMathUtil::IsNormalized(ray_dir));
         wi_ray.Init(sample_pt, ray_dir);
-        *pdf = pow((sample_pt - ref).norm(), 2) / (mArea * ray_dir.dot(mNormal));
+        *pdf = pow((sample_pt - ref).norm(), 2) / (mArea * ray_dir.dot(mNormal)) / (2 * M_PI);
         // std::cout <<"[debug] sample light succ: " << sample_pt.transpose() <<", pdf = " << *pdf << std::endl; 
     }
     // std::cout <<"\n[light] sample pt = " << sample_pt.transpose() << ", ref pt = " << ref.transpose() << std::endl;

@@ -43,7 +43,9 @@ tVector cBRDF::evaluate(const tVector & wi, const tVector & wo, const tVector & 
     assert(cMathUtil::IsVector(normal) && cMathUtil::IsNormalized(normal));
     const int n = 5;
     double cos_alpha = cGeoUtil::Reflect(normal, wi).dot(wo);
-    return mKd / M_PI + mKs * (n + 2) / ( 2 * M_PI) * pow(cos_alpha, n);
+    // std::cout <<" mkd = " << mKd.transpose() / M_PI << std::endl;
+    return mKd / M_PI;
+    // return mKd / M_PI + mKs * (n + 2) / ( 2 * M_PI) * pow(cos_alpha, n);
 }
 
 // bsdf

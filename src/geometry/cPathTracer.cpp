@@ -445,7 +445,10 @@ tVector cPathTracer::RayTracePrimaryRay(tRay & ray, int depth, const int mMaxDep
         tVertex ** vertex_lst = target_face->mVertexPtrList;
         tVector normal = ((vertex_lst[1]->mPos - vertex_lst[0]->mPos).cross3(vertex_lst[2]->mPos - vertex_lst[1]->mPos)).normalized();
 
-        // direct lightning
+        // std::cout <<"----------------"
+        std::vector<double> pdfs;
+        std::vector<tVector> brdfs;
+        // direct lighting
         {
             // iter over all lights
             for(int i=0; i<mSamples; i++)
@@ -460,6 +463,7 @@ tVector cPathTracer::RayTracePrimaryRay(tRay & ray, int depth, const int mMaxDep
                 // light_ray: from light source to pt
                 // pdf = r^2 / (A * cos_theta_0), if illegal, pdf = 0
                 cur_light->Sample_Li(pt, light_ray, &pdf);
+                pdfs.push_back(pdf);
                 if(pdf < 1e-10) // pdf == 0: illegal
                 {
                     // std::cout <<"pdf == 0, continue\n";
@@ -468,6 +472,12 @@ tVector cPathTracer::RayTracePrimaryRay(tRay & ray, int depth, const int mMaxDep
                 // visible test failed -> no light avaliable, continue
                 if(false == VisTestForLight(light_ray.GetOri(), pt, mAccelStructure, mSceneMesh, mAABBLst))
                 {
+
+                    // if(std::fabs(pt[1] - 0.5) < 1e-10)
+                    // {
+                    //     std::cout <<"debug cur pt = " << pt.transpose() <<" invisible ! its impossible\n";
+                    //     exit(1);
+                    // }
                     continue;
                 }
                 // L_i * cos(theta_i) * cos(theta_0) * A / r^2
@@ -482,10 +492,20 @@ tVector cPathTracer::RayTracePrimaryRay(tRay & ray, int depth, const int mMaxDep
                 }
                 double cos_theta_i = normal.dot(-light_ray.GetDir());
                 tVector brdf = mBxDF[mat_id]->evaluate(light_ray.GetDir(), -ray.GetDir(), normal);/* * M_PI * 2;*/
+                brdfs.push_back(brdf);
                 color += cMathUtil::WiseProduct(Li * cos_theta_i / pdf, brdf) / mSamples;
                 }
             }
-            
+            // if(pt[1] - 0.5 < 1e-10 && color.norm() < 0.2)
+            // {
+            //     std::cout <<"pt = " << pt.transpose() <<" color = " << color.transpose() << std::endl;
+            //     std::cout <<"num brdf = " << brdfs.size() <<", pdf num = " << pdfs.size() << std::endl;
+            //     for(int i=0; i<mSamples; i++)
+            //     {
+            //         std::cout << i <<" brdf = " << brdfs[i].transpose() <<", pdf = " << pdfs[i] << std::endl;
+            //     }
+            //     exit(1);
+            // }
         }
 
         // indirect light
@@ -518,7 +538,6 @@ tVector cPathTracer::RayTracePrimaryRay(tRay & ray, int depth, const int mMaxDep
         //     // std::cout <<"sample = " <<  mSamples<<std::endl;
         //     color /= mSamples;
         // }
-
     }
     // std::cout <<"return color = " << color.transpose() << std::endl;
     // if(depth == 0 && color.norm() > 1e-5)
@@ -526,6 +545,15 @@ tVector cPathTracer::RayTracePrimaryRay(tRay & ray, int depth, const int mMaxDep
     //     std::cout <<"color = " << color.transpose() << std::endl;
     // }
     // std::cout << "color = " << color.transpose() << std::endl;
+    if(color.maxCoeff() > 1)
+    {
+        color /= color.maxCoeff();
+        // color.normalize();
+    }
+    // for(int i=0; i<3; i++)
+    // {
+    //     cMathUtil::clamp(color[i], 1.0, 0.0);
+    // } 
     return color;
 }
 
@@ -592,7 +620,7 @@ bool cPathTracer::RayCast(const tRay & ray, tVector & pt, tFace ** target_face,c
 bool cPathTracer::VisTestForLight(const tVector & p1, const tVector & p2,const bool mAccelStructure,const std::shared_ptr<cObjMesh> mSceneMesh,const std::vector<tAABB> & mAABBLst)
 {
     double dist = (p1 - p2).norm();
-    double cur_min_dist = std::numeric_limits<double>::max();
+    double cur_min_dist = dist;
     tVector light_dir = (p2 - p1).normalized();
     std::vector<tFace *> & full_faces = mSceneMesh->GetFaceList();
     if(mAccelStructure == false)
@@ -604,17 +632,19 @@ bool cPathTracer::VisTestForLight(const tVector & p1, const tVector & p2,const b
             double p = cMathUtil::RayCastT(p1, light_dir, x->mVertexPtrList[0]->mPos,
                 x->mVertexPtrList[1]->mPos,
                 x->mVertexPtrList[2]->mPos);
-            assert( std::isnan(p) || p > -1e-6); // if p <=0, illegal
-            // {
-            //     std::cout <<" p = " << p << " " << (std::isnan(p)|| p > 0) << std::endl;
-            //     // exit(1);
-            //     // assert(std::isnan(p) || p > 0);
-            // }
+            assert(std::isnan(p) || p > -1e-6); // if p <=0, illegal
+
             // p > 1e-6: in case of the intersection is with light it self
-            if(std::isnan(p) == false && p < cur_min_dist && p > 1e-6)
+            if(std::isnan(p) == false && p < cur_min_dist - 1e-6 && p > 1e-6)
             {
                 cur_min_dist = p;
-
+                // 如果是0.5附近却不可见，这就不对
+                // if(std::fabs(p2[1] - 0.5) < 1e-10)
+                // {
+                //     std::cout <<"[visible test] pt = " << p2.transpose() << std::endl;
+                //     std::cout <<"dist = " << dist <<" cur dist = " << cur_min_dist << std::endl;
+                //     exit(1);
+                // }
                 // it's invisible if here is an intersect
                 if(cur_min_dist < dist) return false;
             }
@@ -635,12 +665,23 @@ bool cPathTracer::VisTestForLight(const tVector & p1, const tVector & p2,const b
                     x->mVertexPtrList[1]->mPos,
                     x->mVertexPtrList[2]->mPos);
                 assert(std::isnan(p) || p > 0);
-                if(std::isnan(p) == false && p < cur_min_dist && p > 1e-6)
+                if(std::isnan(p) == false && p < cur_min_dist - 1e-6 && p > 1e-6)
                 {
                     cur_min_dist = p;
 
                     // it's invisible if here is an intersect
-                    if(cur_min_dist < dist) return false;
+                    if(cur_min_dist < dist)
+                    {
+                        // 如果是0.5附近却不可见，这就不对
+                        // if(std::fabs(p2[1] - 0.5) < 1e-10)
+                        // {
+                        //     std::cout <<"[visible test] pt = " << p2.transpose() << std::endl;
+                        //     std::cout <<"dist = " << dist <<" cur dist = " << cur_min_dist << std::endl;
+                        //     exit(1);
+                        // }
+                        return false;
+                        
+                    } 
                 }
                 // if(p.hasNaN() == false && (p - ray.GetOri()).norm() < dist && (p-ray.GetOri()).norm() > 1e-6)
                 // {
