@@ -27,6 +27,7 @@ private:
     bool mAccelStructure;
     bool mRayDisplay;
     bool mOpenResult;
+    bool mEnableIndrectLight;
     std::string mResultPath;
     int mDivide;
     int mMaxDepth;
@@ -47,8 +48,9 @@ private:
 
     void GenerateRay();
     void RayTracing();
-    tVector RayTracePrimaryRay(tRay & ray, int depth, const int mMaxDepth,const bool mAccelStructure,const std::shared_ptr<cObjMesh> mSceneMesh,const std::vector<tAABB> & mAABBLst, const int samples);
-    static bool RayCast(const tRay & ray, tVector & pt, tFace ** target_face, const bool mAccelStructure,const std::shared_ptr<cObjMesh> mSceneMesh,const std::vector<tAABB> & mAABBLst);
+
+    tVector RayTracePrimaryRay(const tRay & ray, int id) const;
+    static tFace * RayCast(const tRay & ray, tVector & pt, const bool mAccelStructure,const std::shared_ptr<cObjMesh> mSceneMesh,const std::vector<tAABB> & mAABBLst);
     static bool VisTestForLight(const tVector & p1, const tVector & p2,const bool mAccelStructure,const std::shared_ptr<cObjMesh> mSceneMesh,const std::vector<tAABB> & mAABBLst);
     void OutputImage();
 };

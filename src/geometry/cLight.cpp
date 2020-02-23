@@ -3,7 +3,7 @@
 #include <util/cJsonUtil.hpp>
 #include <util/cGeoUtil.hpp>
 
-cLight::cLight(eLightType type):mType(type)
+cLight::cLight(eLightType type, const tVector & v):mType(type), mRadiance(v)
 {
     this->mLightFaces.clear();
 }
@@ -14,7 +14,7 @@ eLightType cLight::GetType()
 }
 
 
-cSquareLight::cSquareLight(const tVector light_pt[4]):cLight(eLightType::SQUARE)
+cSquareLight::cSquareLight(const tVector light_pt[4], const tVector & v):cLight(eLightType::SQUARE, v)
 {
     // std::cout <<"[debug] init square light begin\n";
     tVector normal1 = cGeoUtil::CalcNormalFrom3Pts(light_pt[0], light_pt[1], light_pt[2]),
@@ -110,7 +110,7 @@ void cSquareLight::GetDrawShape(std::vector<tFace> & faces) const
 // build light
 std::vector<std::shared_ptr<cLight>> BuildLight(const std::string & conf)
 {
-    Json::Value root, scene, light_info_lst, light_type_lst;
+    Json::Value root, scene, light_info_lst, light_type_lst, light_radiance_lst;
     if(false == cJsonUtil::ParseJson(conf, root))
     {
         std::cout <<"[error] BuildLight parse failed " << conf << std::endl;
@@ -123,10 +123,11 @@ std::vector<std::shared_ptr<cLight>> BuildLight(const std::string & conf)
     int light_num = scene["LightNum"].asInt();
     light_type_lst = scene["LightType"];
     light_info_lst = scene["LightInfo"];
+    light_radiance_lst = scene["LightRadiance"];
 
-    if(scale < 1e-5 || light_num == 0 || light_type_lst.isNull() || light_info_lst.isNull())
+    if(scale < 1e-5 || light_num == 0 || light_type_lst.isNull() || light_info_lst.isNull() || light_radiance_lst.isNull())
     {
-        std::cout <<"[error] BuildLight light parse failed " << scale << light_num << light_info_lst.isNull() << light_type_lst.isNull() << std::endl;
+        std::cout <<"[error] BuildLight light parse failed " << scale << light_num << light_info_lst.isNull() << light_type_lst.isNull() << light_radiance_lst.isNull() << std::endl;
         exit(1);
     }
 
@@ -136,6 +137,9 @@ std::vector<std::shared_ptr<cLight>> BuildLight(const std::string & conf)
     {
         const std::string type = light_type_lst[light_id].asString();
         Json::Value light_info = light_info_lst[light_id];
+        tVector light_radiance = tVector::Zero();
+        for(int i=0; i<3; i++) light_radiance[i] = light_radiance_lst[i].asDouble();
+
         if(type == "square")
         {
             tVector square_pts[4] = { tVector::Zero(), tVector::Zero(), tVector::Zero(), tVector::Zero() };
@@ -155,7 +159,7 @@ std::vector<std::shared_ptr<cLight>> BuildLight(const std::string & conf)
                 }
                 square_pts[i][3] /= scale;
             }
-            light_res_lst[light_id] = std::shared_ptr<cLight>(new cSquareLight(square_pts));
+            light_res_lst[light_id] = std::shared_ptr<cLight>(new cSquareLight(square_pts, light_radiance));
 
             // std::cout <<"[debug] light pos = " << square_pts[0].transpose() <<"\n" << 
             //     square_pts[1].transpose() << "\n" << 

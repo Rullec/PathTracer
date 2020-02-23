@@ -184,8 +184,9 @@ double cMathUtil::RayCastT(const tVector & ori, const tVector & dir,\
 // sample from a hemisphere, implied by the normal vector
 tVector cMathUtil::SampleHemiSphereUniform(const tVector & normal, double & pdf)
 {
-	assert(std::fabs(normal[3]) < 1e-10);
-	assert(std::fabs(normal.norm() - 1) < 1e-10);
+	// assert(std::fabs(normal[3]) < 1e-10);
+	assert(cMathUtil::IsNormalized(normal));
+	assert(cMathUtil::IsVector(normal));
 
 	double xi1 = drand48(), xi2 = drand48();
 	double theta = std::acos(1 - xi1), phi = 2 * M_PI * xi2; 
@@ -194,7 +195,27 @@ tVector cMathUtil::SampleHemiSphereUniform(const tVector & normal, double & pdf)
 
 	tVector y_axis = tVector(0, 1, 0, 0);
 	tVector axis = y_axis.cross3(normal - y_axis).normalized();
+	
 	double angle = std::acos(y_axis.dot(normal));
+	if(cMathUtil::IsNormalized(axis) == false)
+	{
+		// which means normal = (0, -1, 0) || (0, 1, 0);
+		axis = tVector(1, 0, 0, 0);
+		if(std::fabs(normal[1] - 1) < 1e-10)
+		{
+			angle = 0;
+		}
+		else if(std::fabs(normal[1] + 1) < 1e-10)
+		{
+			angle = M_PI;
+		}
+		else
+		{
+			std::cout <<"[error] cMathUtil::SampleHemiSphereUniform normal = " << normal.transpose() << std::endl;
+		}
+		
+
+	}
 	tQuaternion rot = cMathUtil::AxisAngleToQuaternion(axis * angle);
 	res = cMathUtil::QuatRotVec(rot, res);
 	return res;

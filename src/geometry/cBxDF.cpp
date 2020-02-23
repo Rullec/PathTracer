@@ -16,6 +16,11 @@ cBRDF::cBRDF(const tVector& ka, const tVector&  kd, const double& ni, const doub
     {
         mIsLight = true;
     }
+    // std::cout <<"[debug] cBSDF::cBSDF get ka = " << mKa.transpose() <<"\n"
+    // << "kd = " << mKd.transpose() <<"\n"
+    // << "ni = " << mNi <<"\n"
+    // << "ns = " << mNs <<"\n"
+    // << "ks = " << mKs.transpose() <<"\n";
 }
 
 tVector cBRDF::Sample_f()
@@ -41,11 +46,10 @@ tVector cBRDF::evaluate(const tVector & wi, const tVector & wo, const tVector & 
     assert(cMathUtil::IsVector(wi) && cMathUtil::IsNormalized(wi));
     assert(cMathUtil::IsVector(wo) && cMathUtil::IsNormalized(wo));
     assert(cMathUtil::IsVector(normal) && cMathUtil::IsNormalized(normal));
-    const int n = 5;
     double cos_alpha = cGeoUtil::Reflect(normal, wi).dot(wo);
     // std::cout <<" mkd = " << mKd.transpose() / M_PI << std::endl;
-    return mKd / M_PI;
-    // return mKd / M_PI + mKs * (n + 2) / ( 2 * M_PI) * pow(cos_alpha, n);
+    // return mKd / M_PI;
+    return mKd / M_PI + mKs * (mNs + 2) / ( 2 * M_PI) * pow(cos_alpha, mNs);
 }
 
 // bsdf

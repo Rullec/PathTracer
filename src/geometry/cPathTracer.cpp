@@ -4,6 +4,7 @@
 #include <util/cTimeUtil.hpp>
 #include <util/cFileUtil.h>
 #include <util/cJsonUtil.hpp>
+#include <util/cGeoUtil.hpp>
 #include <geometry/cLight.hpp>
 #include <geometry/cBxDF.hpp>
 #include <omp.h>
@@ -275,6 +276,7 @@ void cPathTracer::ParseConfig(const std::string & conf)
     mMaxDepth = path_tracer_json["Depth"].asInt();
     mOpenResult = path_tracer_json["OpenResultAfterDone"].asBool();
     mSamples = path_tracer_json["Samples"].asInt();
+    mEnableIndrectLight = path_tracer_json["EnableIndirectLight"].asBool();
     assert(mMaxDepth > 0);
     assert(mResultPath.size() > 0);
     assert(mSamples > 0);
@@ -351,6 +353,16 @@ void cPathTracer::GetDrawResources(std::vector<tLine> & lines, std::vector<tVert
             for(auto & f : s_fs) faces.push_back(f);
         }
     }
+
+    // test normal
+    // double pdf;
+    // tVertex v;
+    // for(int i=0; i<5000; i++)
+    // {
+    //     tVector vec = cMathUtil::SampleHemiSphereUniform(tVector(0, -1, 0, 0).normalized(), pdf);
+    //     v.mPos = vec;
+    //     pts.push_back(v);
+    // }
 }
 
 void cPathTracer::RayTracing()
@@ -364,7 +376,7 @@ void cPathTracer::RayTracing()
     int inter_num = 0;
     for(int x = 0; x< mHeight; x++)
     {
-        printf("\rprogress: %.3f%%", x * 100.0 / (mHeight));
+        printf("\rprogress: %.3f%%\n", x * 100.0 / (mHeight));
 #ifdef ENABLE_OPENMP
 #pragma omp parallel for schedule(static)
 #endif
@@ -372,11 +384,25 @@ void cPathTracer::RayTracing()
         {
             // if(i%10 !=0) continue;
             int i = x * mWidth + y;
-            mScreenPixel[i] = RayTracePrimaryRay(mScreenRay[i], 0, mMaxDepth, mAccelStructure, mSceneMesh, mAABBLst, mSamples);
+            mScreenPixel[i] = tVector::Zero();
+            for(int s=0; s<mSamples; s++)
+            {
+                mScreenPixel[i] += RayTracePrimaryRay(mScreenRay[i], i) / mSamples;
+            }    
+            if(mScreenPixel[i].maxCoeff() > 1) mScreenPixel[i] /= mScreenPixel[i].maxCoeff();
+            // std::cout <<mScreenPixel[i].transpose()<< std::endl;
             // if(mScreenPixel[i].norm() > 1e-3)
             // {
             //     std::cout <<"get color = " << mScreenPixel[i].transpose() << " ";
             // } 
+            // if(i >= (mWidth * 50 + mWidth / 5)  && i<= (51 * mWidth - mWidth / 5))
+            // {
+            //     // std::cout <<(mWidth * 50 + mWidth / 5) <<" " << (51 * mWidth - mWidth / 5) << std::endl;
+            //     // std::cout << mScreenPixel[i].transpose() << std::endl;
+            //     // std::cout << mScreenPixel[i].transpose() << std::endl;
+            //     std::cout << mScreenRay[i].GetDir().transpose() << std::endl;
+            //     // mScreenPixel[i] = tVector::Ones();
+            // }
 // #ifdef DEBUG_MODE
 //             if(inter == true)
 //             {
@@ -412,148 +438,217 @@ void cPathTracer::RayTracing()
     OutputImage();
 }
 
-tVector cPathTracer::RayTracePrimaryRay(tRay & ray, int depth, const int mMaxDepth,const bool mAccelStructure,const std::shared_ptr<cObjMesh> mSceneMesh,const std::vector<tAABB> & mAABBLst, const int samples)
+tVector cPathTracer::RayTracePrimaryRay(const tRay & ray_, int ray_id) const
 {
-    tVector color = tVector::Zero(); 
-
-    // step1: check depth
-    if(depth > mMaxDepth) return color;
+    assert(cMathUtil::IsPoint(ray_.GetOri()));
+    assert(cMathUtil::IsVector(ray_.GetDir()));
+    tRay ray = ray_;
+    // tVector color = tVector::Zero(); 
 
     // step2: find intersection
-    tVector pt = tVector::Ones() * std::nan("");
+    tRay wi_ray;    // from light source to ref pt
+    double pdf, cos_theta_normal_wi;
+    tVector brdf_value, ref_normal, ref_pt = tVector::Ones() * std::nan("");
     tFace * target_face = nullptr;
+    std::shared_ptr<cBxDF> brdf;
+    int mat_id = -1;
+    tVector final_color = tVector::Zero();
+    tMaterial * mat = nullptr;
+    std::vector<tVector> direct_light_lst(0), indirect_light_lst(0);
+    tVector direct_color = tVector::Zero(), indirect_coeff = tVector::Zero();
 
-    // step3: if there is an intersection, begin to sample
-    if(RayCast(ray, pt, &target_face, mAccelStructure, mSceneMesh, mAABBLst) == true)
+    for(int bounce = 0; bounce < mMaxDepth; bounce++)
     {
-        int mat_id = target_face->mMaterialId;
-       
+        direct_color = tVector::Zero();
+        indirect_coeff = tVector::Zero();
+
+        // 1. raycast, get target face and material
+        target_face = RayCast(ray, ref_pt, mAccelStructure, mSceneMesh, mAABBLst);
+        if(target_face == nullptr)
+        {
+            final_color = tVector::Zero();
+            break;
+        }
+
+        mat_id = target_face->mMaterialId;
+
+        // 2. if material is empty
         if(mat_id == -1)
         {
-            // 没有材质: 白色
-            return tVector(1, 1, 1, 0);
+            break;
         }
-        tMaterial * mat = mSceneMesh->GetMaterial(mat_id);
-        // if(mat->ambient.norm() > 1e-6)
-        // {
+        mat = mSceneMesh->GetMaterial(mat_id);
 
-        //     // for(int i=0; i<3; i++)
-        //         // std::cout << target_face->mVertexPtrList[i]->mPos.transpose() << std::endl;
-        //     // std::cout << "light! = " << pt.transpose() << std::endl;
-        // }
-        std::shared_ptr<cBxDF> brdf = mBxDF[mat_id];
-        tVertex ** vertex_lst = target_face->mVertexPtrList;
-        tVector normal = ((vertex_lst[1]->mPos - vertex_lst[0]->mPos).cross3(vertex_lst[2]->mPos - vertex_lst[1]->mPos)).normalized();
-
-        // std::cout <<"----------------"
-        std::vector<double> pdfs;
-        std::vector<tVector> brdfs;
-        // direct lighting
+        // 3. if material is ambient, set up final color, break, do not reflect any more
+        if(mat->ambient.norm() > 1e-6)
         {
-            // iter over all lights
-            for(int i=0; i<mSamples; i++)
-            {
-                tRay light_ray;
-            double pdf;
+            final_color = mat->ambient;
+            break;
+        }
+
+        brdf = mBxDF[mat_id];
+        tVertex ** vertex_lst = target_face->mVertexPtrList;
+        ref_normal = ((vertex_lst[1]->mPos - vertex_lst[0]->mPos).cross3(vertex_lst[2]->mPos - vertex_lst[1]->mPos)).normalized();
+
+
+        // 4. calculate direct light
+        {
             for(auto & cur_light : mLight)
             {
                 assert(eLightType::SQUARE == cur_light->GetType());
                 // 从光源中采样一个点，
                 tVector Li = tVector(10, 10, 10, 0);
-                // light_ray: from light source to pt
+                // wi_ray: from light source to pt
                 // pdf = r^2 / (A * cos_theta_0), if illegal, pdf = 0
-                cur_light->Sample_Li(pt, light_ray, &pdf);
-                pdfs.push_back(pdf);
-                if(pdf < 1e-10) // pdf == 0: illegal
-                {
-                    // std::cout <<"pdf == 0, continue\n";
-                    continue;
-                }
-                // visible test failed -> no light avaliable, continue
-                if(false == VisTestForLight(light_ray.GetOri(), pt, mAccelStructure, mSceneMesh, mAABBLst))
-                {
+                cur_light->Sample_Li(ref_pt, wi_ray, &pdf);
 
-                    // if(std::fabs(pt[1] - 0.5) < 1e-10)
-                    // {
-                    //     std::cout <<"debug cur pt = " << pt.transpose() <<" invisible ! its impossible\n";
-                    //     exit(1);
-                    // }
+                // intersect with myself?
+                if(pdf < 1e-10) continue;
+
+                // visible test failed -> no light avaliable, continue
+                if(false == VisTestForLight(wi_ray.GetOri(), ref_pt, mAccelStructure, mSceneMesh, mAABBLst)) 
                     continue;
-                }
+
                 // L_i * cos(theta_i) * cos(theta_0) * A / r^2
                 // = L_i * cos(theta_i) / p(w)
-                assert(cMathUtil::IsVector(light_ray.GetDir()));
-                if(false == cMathUtil::IsNormalized(light_ray.GetDir()))
+                assert(cMathUtil::IsVector(wi_ray.GetDir()));
+                assert(cMathUtil::IsNormalized(wi_ray.GetDir()));
+                cos_theta_normal_wi = ref_normal.dot(-wi_ray.GetDir());
+                if(cos_theta_normal_wi < 0) continue;
+                // {
+                //     std::cout <<"ref normal = " << ref_normal.transpose() << std::endl;
+                //     std::cout <<"wi_ray = " << -wi_ray.GetDir().transpose() << std::endl;
+                //     std::cout <<"ref pt = " << ref_pt.transpose() << std::endl;
+                //     std::cout <<"pdf = " << pdf << std::endl;
+                //     exit(1);
+                // }
+                brdf_value = brdf->evaluate(wi_ray.GetDir(), -ray.GetDir(), ref_normal);/* * M_PI * 2;*/
+                direct_color += cMathUtil::WiseProduct(Li * cos_theta_normal_wi / pdf, brdf_value);
+                if(false == direct_color.minCoeff() > -1e-6)
                 {
-                    std::cout <<"ori = " << light_ray.GetOri().transpose() << std::endl;
-                    std::cout <<"dir = " << light_ray.GetDir().transpose() << std::endl;
-                    std::cout <<"pdf = " << pdf << std::endl;
+                    std::cout <<"direct color negative = " <<  direct_color.transpose() << std::endl;
+                    std::cout <<"Li = " << Li.transpose() << ", theta = " << cos_theta_normal_wi << ", pdf = " << pdf << ", brdf = " << brdf_value.transpose() << std::endl;
                     exit(1);
                 }
-                double cos_theta_i = normal.dot(-light_ray.GetDir());
-                tVector brdf = mBxDF[mat_id]->evaluate(light_ray.GetDir(), -ray.GetDir(), normal);/* * M_PI * 2;*/
-                brdfs.push_back(brdf);
-                color += cMathUtil::WiseProduct(Li * cos_theta_i / pdf, brdf) / mSamples;
-                }
+                // direct_color += cMathUtil::WiseProduct(Li * cos_theta_normal_wi / pdf, brdf_value) / mSamples;
             }
-            // if(pt[1] - 0.5 < 1e-10 && color.norm() < 0.2)
-            // {
-            //     std::cout <<"pt = " << pt.transpose() <<" color = " << color.transpose() << std::endl;
-            //     std::cout <<"num brdf = " << brdfs.size() <<", pdf num = " << pdfs.size() << std::endl;
-            //     for(int i=0; i<mSamples; i++)
-            //     {
-            //         std::cout << i <<" brdf = " << brdfs[i].transpose() <<", pdf = " << pdfs[i] << std::endl;
-            //     }
-            //     exit(1);
-            // }
         }
 
-        // indirect light
-        // if(mat->ambient.norm() > 1e-5)
-        // {
-        //     // light source: 返回光源色
-        //     color = mat->ambient;
-        // }
-        // else
-        // {
-        //     // 是其他的, 开始半球采样
-        //     for(int i=0; i<mSamples; i++)
-        //     {
-        //         double pdf;
-        //         tVector dir = cMathUtil::SampleHemiSphereUniform(normal, pdf);
-        //         // dir = (tVector(55, 22.5, 22.5, 0) - pt).normalized();
-        //         ray.Init(pt, dir);
+        // calculate indirect light
+        // if no indrect light, no out put ray
+        if(mEnableIndrectLight == true)
+        {
+            // 1. decide a random sample ray: wi_dir from ref pt to light src
+            tVector wi_dir = cMathUtil::SampleHemiSphereUniform(ref_normal, pdf);
+            wi_ray.Init(ref_pt, -wi_dir);   // wi_ray from light src to ref_pt
 
-        //         tVector brdf = mat->diffuse / M_PI;
-        //         tVector Li = RayTracePrimaryRay(ray, depth + 1, mMaxDepth, mAccelStructure, mSceneMesh, mAABBLst, mSamples);
-        //         double cos = normal.dot(dir);
-        //         // color += BRDF * Li * cos / pdf
-        //         color += tVector(brdf.array() * Li.array() * cos / pdf);
-        //         // if(Li.norm() > 1e-10)
-        //         // {
-        //         //     std::cout <<"get li = " << Li.transpose() << std::endl;
-        //         //     std::cout <<"cur color = " << color.transpose() << std::endl;
-        //         // }
-        //     }
-        //     // std::cout <<"sample = " <<  mSamples<<std::endl;
-        //     color /= mSamples;
+            brdf_value = brdf->evaluate(wi_ray.GetDir(), -ray.GetDir(), ref_normal);
+            indirect_coeff = brdf_value * ref_normal.dot(wi_dir) / pdf;
+            // 2. calculate the coeff
+            /*
+                coeff = brdf * cos(face_normal * w_i) / pdf
+            */
+            // change light dir
+            ray.Init(ref_pt, wi_dir);
+        
+            direct_light_lst.push_back(direct_color);
+            indirect_light_lst.push_back(indirect_coeff);
+            if(indirect_coeff.minCoeff() < -1e-6)
+            {
+                std::cout << " for ray " << ray_id <<" bounce " << bounce <<", normal = " << ref_normal.transpose()<<std::endl;
+                std::cout << "indirect light = " << indirect_coeff.transpose() << std::endl;
+                std::cout <<"brdf = " << brdf_value.transpose() << std::endl;
+                std::cout <<"cos theta = " << ref_normal.dot(wi_dir) << std::endl;
+                std::cout <<"ref_normal = " << ref_normal.transpose() << std::endl;
+                std::cout <<"wi dir = " << wi_dir.transpose() << std::endl;
+                std::cout <<"pdf = " << pdf << std::endl;
+                exit(1);
+            }
+        }
+        else
+        {
+            ray.Init(tVector::Zero(), tVector::Zero());
+
+            direct_light_lst.push_back(direct_color);
+            indirect_light_lst.push_back(indirect_coeff);
+            break;
+        }
+    }
+    
+    // calculate
+    // std::cout <<"calc begin"
+    tVector color = final_color;
+    for(int i=direct_light_lst.size()-1; i>=0; i--)
+    {
+        color = direct_light_lst[i] + cMathUtil::WiseProduct(indirect_light_lst[i], color);
+
+        if(color.maxCoeff() > 1)
+        {
+            color /= color.maxCoeff();
+        }
+        // if(ray_id >= 25702 && ray_id<= 26010)
+        // {
+        //     std::cout << ref_normal.transpose() << std::endl;
+        //     // std::cout << indirect_light_lst[i].transpose() << std::endl;
         // }
     }
-    // std::cout <<"return color = " << color.transpose() << std::endl;
-    // if(depth == 0 && color.norm() > 1e-5)
+
     // {
-    //     std::cout <<"color = " << color.transpose() << std::endl;
+    //     std::cout << ray_id <<" " << 
     // }
-    // std::cout << "color = " << color.transpose() << std::endl;
-    if(color.maxCoeff() > 1)
-    {
-        color /= color.maxCoeff();
-        // color.normalize();
-    }
-    // for(int i=0; i<3; i++)
+    // step3: if there is an intersection, begin to sample
+    // if(nullptr != target_face)
     // {
-    //     cMathUtil::clamp(color[i], 1.0, 0.0);
-    // } 
+        
+       
+    //     if(mat_id == -1)
+    //     {
+    //         // 没有材质: 白色
+    //         return tVector(1, 1, 1, 0);
+    //     }
+    //     tMaterial * mat = mSceneMesh->GetMaterial(mat_id);
+
+    //     // emittance
+    //     if(mat->ambient.norm() > 1e-6) return mat->ambient;
+
+    //     brdf = mBxDF[mat_id];
+    //     tVertex ** vertex_lst = target_face->mVertexPtrList;
+    //     ref_normal = ((vertex_lst[1]->mPos - vertex_lst[0]->mPos).cross3(vertex_lst[2]->mPos - vertex_lst[1]->mPos)).normalized();
+
+    //     // direct lighting
+    //     for(int i=0; i<mSamples; i++)
+    //     {
+    //         for(auto & cur_light : mLight)
+    //         {
+    //             assert(eLightType::SQUARE == cur_light->GetType());
+    //             // 从光源中采样一个点，
+    //             tVector Li = tVector(10, 10, 10, 0);
+    //             // wi_ray: from light source to pt
+    //             // pdf = r^2 / (A * cos_theta_0), if illegal, pdf = 0
+    //             cur_light->Sample_Li(ref_pt, wi_ray, &pdf);
+
+    //             // intersect with myself?
+    //             if(pdf < 1e-10) continue;
+
+    //             // visible test failed -> no light avaliable, continue
+    //             if(false == VisTestForLight(wi_ray.GetOri(), ref_pt, mAccelStructure, mSceneMesh, mAABBLst)) 
+    //                 continue;
+
+    //             // L_i * cos(theta_i) * cos(theta_0) * A / r^2
+    //             // = L_i * cos(theta_i) / p(w)
+    //             assert(cMathUtil::IsVector(wi_ray.GetDir()));
+    //             assert(cMathUtil::IsNormalized(wi_ray.GetDir()));
+    //             cos_theta_normal_wi = ref_normal.dot(-wi_ray.GetDir());
+    //             brdf_value = brdf->evaluate(wi_ray.GetDir(), -ray.GetDir(), ref_normal);/* * M_PI * 2;*/
+    //             color += cMathUtil::WiseProduct(Li * cos_theta_normal_wi / pdf, brdf_value) / mSamples;
+    //         }
+    //     }
+    // }
+
+    // if(color.maxCoeff() > 1)
+    // {
+    //     color /= color.maxCoeff();
+    // }
     return color;
 }
 
@@ -564,12 +659,10 @@ tVector cPathTracer::RayTracePrimaryRay(tRay & ray, int depth, const int mMaxDep
     face: pointer to the pointer of a intersection face
     return bool: intersection or not?
 */
-bool cPathTracer::RayCast(const tRay & ray, tVector & pt, tFace ** target_face,const bool mAccelStructure,const std::shared_ptr<cObjMesh> mSceneMesh,const std::vector<tAABB> & mAABBLst)
+tFace * cPathTracer::RayCast(const tRay & ray, tVector & pt, const bool mAccelStructure,const std::shared_ptr<cObjMesh> mSceneMesh,const std::vector<tAABB> & mAABBLst)
 {
     pt = tVector::Ones() * std::nan("");
-    *target_face = nullptr;
-
-    bool intersect = false;
+    tFace * target_face = nullptr;
     double dist = std::numeric_limits<double>::max();
     std::vector<tFace *> & full_faces = mSceneMesh->GetFaceList();
     if(mAccelStructure == false)
@@ -585,8 +678,7 @@ bool cPathTracer::RayCast(const tRay & ray, tVector & pt, tFace ** target_face,c
             {
                 pt = p;
                 dist = (p - ray.GetOri()).norm();
-                *target_face = x;
-                intersect = true;
+                target_face = x;
             }
         }
     }
@@ -606,14 +698,13 @@ bool cPathTracer::RayCast(const tRay & ray, tVector & pt, tFace ** target_face,c
                 {
                     pt = p;
                     dist = (p - ray.GetOri()).norm();
-                    *target_face = x;
-                    intersect = true;
+                    target_face = x;
                 }
             }
         }
     }
 
-    return intersect;
+    return target_face;
 }
 
 // the light is from p1 to p2
