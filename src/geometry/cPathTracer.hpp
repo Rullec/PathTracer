@@ -28,6 +28,7 @@ private:
     bool mRayDisplay;
     bool mOpenResult;
     bool mEnableIndrectLight;
+    bool mDrawLight;
     std::string mResultPath;
     int mDivide;
     int mMaxDepth;
