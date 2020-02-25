@@ -4,6 +4,7 @@
 class cBaseCamera;
 class cLight;
 class cBxDF;
+class cAccelStruct;
 class cPathTracer
 {
 public: 
@@ -18,18 +19,20 @@ private:
     std::vector<std::shared_ptr<cLight>> mLight;
     std::vector<std::shared_ptr<cBxDF>> mBxDF;
     std::shared_ptr<cBaseCamera> mCamera;
+    std::shared_ptr<cAccelStruct> mAccelStruct;
     
     // camera parameters
     int mWidth, mHeight;
     double mFov, mNear;
 
     // ray tracing configuration
-    bool mAccelStructure;
+    // bool mEnableAccelStruct;
     bool mRayDisplay;
     bool mOpenResult;
     bool mEnableIndrectLight;
+    bool mDrawLight;
     std::string mResultPath;
-    int mDivide;
+    // int mDivide;
     int mMaxDepth;
     int mSamples;
     
@@ -43,14 +46,12 @@ private:
 
     // methods
     void ParseConfig(const std::string & conf);
-    void BuildAccelStructure();
+    void InitAccelStruct();
     void InitBxDF();
 
     void GenerateRay();
     void RayTracing();
 
     tVector RayTracePrimaryRay(const tRay & ray, int id) const;
-    static tFace * RayCast(const tRay & ray, tVector & pt, const bool mAccelStructure,const std::shared_ptr<cObjMesh> mSceneMesh,const std::vector<tAABB> & mAABBLst);
-    static bool VisTestForLight(const tVector & p1, const tVector & p2,const bool mAccelStructure,const std::shared_ptr<cObjMesh> mSceneMesh,const std::vector<tAABB> & mAABBLst);
     void OutputImage();
 };

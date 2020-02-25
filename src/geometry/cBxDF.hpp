@@ -1,5 +1,5 @@
+#pragma once
 #include <util/cMathUtil.hpp>
-
 enum eBxDFType{
     INVALID, 
     BRDF,   // reflect
