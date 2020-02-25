@@ -1,3 +1,4 @@
+#define ENABLE_OPENMP
 #include "cPathTracer.hpp"
 #include <geometry/cBaseMesh.h>
 #include <render/camera/cBaseCamera.hpp>
@@ -7,9 +8,10 @@
 #include <util/cGeoUtil.hpp>
 #include <geometry/cLight.hpp>
 #include <geometry/cBxDF.hpp>
+#include <geometry/cAccelStruct.hpp>
 #include <omp.h>
 // #define DEBUG_MODE
-#define ENABLE_OPENMP
+
 
 cPathTracer::cPathTracer(const std::string &conf):mConfPath(conf)
 {
@@ -40,10 +42,8 @@ void cPathTracer::Init(std::shared_ptr<cBaseMesh> scene_mesh, std::shared_ptr<cB
     mScreenPixel = new tVector[mWidth * mHeight];
     mScreenRay = new tRay[mWidth * mHeight];
 
-    if(mAccelStructure)
-    {
-        BuildAccelStructure();
-    }
+    // init accel structure
+    InitAccelStruct();    
 
     // init light
     mLight = BuildLight(mConfPath);
@@ -77,9 +77,8 @@ void cPathTracer::Process()
     RayTracing();
 }
 
-void cPathTracer::BuildAccelStructure()
+void cPathTracer::InitAccelStruct()
 {
-    
     // create AABB and divide the space
     if(nullptr == mSceneMesh)
     {
@@ -87,72 +86,12 @@ void cPathTracer::BuildAccelStructure()
         exit(1);
     }
 
-    tVector upper, lower;
-    mSceneMesh->GetBound(upper, lower);
-    for(int i=0; i<3; i++) upper[i] +=1e-5, lower[i]-=1e-5;
-    // std::cout <<"[debug] upper = " << upper.transpose() <<", lower = " << lower.transpose() << std::endl;
-    
-    // divide the whole space
-    tAABB box;
-    mAABBLst.clear();
-    int id[3] = {0, 0, 0};
-    for(id[0]=0; id[0]<mDivide; id[0]++)
-        for(id[1]=0; id[1]<mDivide; id[1]++)
-            for(id[2]=0; id[2]<mDivide; id[2]++)
+    if(mAccelStruct == nullptr)
     {
-        for(int i=0; i<3; i++)
-        {
-            box.bound[i][0] = lower[i] + (upper-lower)[i] / mDivide * id[i];
-            box.bound[i][1] = lower[i] + (upper-lower)[i] / mDivide * (id[i] + 1);
-        }
-        mAABBLst.push_back(box);
+        std::cout <<"[error] cPathTracer::InitAccelStruct empty ptr\n";
+        exit(1);
     }
-    
-    // dispatch all faces to these AABB
-    std::vector<tFace *> & faces = mSceneMesh->GetFaceList();
-#ifdef ENABLE_OPENMP
-#pragma omp parallel for
-#endif 
-    for(int i=0; i<faces.size(); i++)
-    {
-        auto & face = faces[i];
-        bool find_box = false;
-        for(int i=0; i<mAABBLst.size(); i++)
-        {
-            auto &box = mAABBLst[i];
-            // std::cout <<"find " << i << std::endl;
-            if(true == box.intersect(face))
-            {
-                find_box = true;
-                // std::cout <<"intersect good =  " << i << std::endl;
-#ifdef ENABLE_OPENMP
-            #pragma omp critical
-#endif
-                box.mFaceId.push_back(face->mFaceId);
-            }
-        }
-
-        // check and verify
-        if(false == find_box)
-        {
-            std::cout <<"[error] find box for face failed" << std::endl;
-            for(int i=0; i<NUM_VERTEX_PER_FACE; i++)
-                std::cout << face->mVertexPtrList[i]->mPos.transpose() << std::endl;
-
-            std::cout << "all boxes info\n";
-            for(auto &box : mAABBLst)
-            {
-                std::cout <<"-----------\n";
-                std::cout <<"box x range = " << box.bound[0].transpose() << std::endl;
-                std::cout <<"box y range = " << box.bound[1].transpose() << std::endl;
-                std::cout <<"box z range = " << box.bound[2].transpose() << std::endl;
-            }
-            exit(1);
-        }
-    }
-
-    // remove all empty boxes
-    mAABBLst.erase(std::remove_if(mAABBLst.begin(), mAABBLst.end(), [](const tAABB & box) { return box.mFaceId.size() == 0; }), mAABBLst.end());
+    mAccelStruct->Init(std::static_pointer_cast<cBaseMesh>(mSceneMesh));
 }
 
 void cPathTracer::InitBxDF()
@@ -269,8 +208,8 @@ void cPathTracer::ParseConfig(const std::string & conf)
         exit(1);
     }
 
-    mAccelStructure =  path_tracer_json["EnableAccel"].asBool();
-    mDivide = path_tracer_json["Subdivide"].asInt();
+    // mEnableAccelStruct =  path_tracer_json["EnableAccel"].asBool();
+    // mDivide = path_tracer_json["Subdivide"].asInt();
     mResultPath = path_tracer_json["ResultPath"].asString();
     mRayDisplay = path_tracer_json["EnableRayDisplay"].asBool();
     mMaxDepth = path_tracer_json["Depth"].asInt();
@@ -278,6 +217,9 @@ void cPathTracer::ParseConfig(const std::string & conf)
     mSamples = path_tracer_json["Samples"].asInt();
     mEnableIndrectLight = path_tracer_json["EnableIndirectLight"].asBool();
     mDrawLight = path_tracer_json["DrawLight"].asBool();
+    mAccelStruct = BuildAccelStruct(path_tracer_json["RayCastAccel"]);
+
+    assert(mAccelStruct != nullptr);
     assert(mMaxDepth > 0);
     assert(mResultPath.size() > 0);
     assert(mSamples > 0);
@@ -379,12 +321,12 @@ void cPathTracer::RayTracing()
 
     // for(int i=0; i < mWidth * mHeight; i++)
     int inter_num = 0;
-    for(int x = 0; x< mHeight; x++)
-    {
-        printf("\rprogress: %.3f%%\n", x * 100.0 / (mHeight));
 #ifdef ENABLE_OPENMP
 #pragma omp parallel for schedule(static)
 #endif
+    for(int x = 0; x< mHeight; x++)
+    {
+        printf("\rprogress: %.3f%%\n", inter_num++ * 100.0 / (mHeight));
         for(int y = 0; y< mWidth; y++)
         {
             // if(i%10 !=0) continue;
@@ -395,49 +337,9 @@ void cPathTracer::RayTracing()
                 mScreenPixel[i] = RayTracePrimaryRay(mScreenRay[i], i);
                 // mScreenPixel[i] = RayTracePrimaryRay(mScreenRay[i], i) / mSamples;
             }    
-            // if(mScreenPixel[i].maxCoeff() > 1) mScreenPixel[i] /= mScreenPixel[i].maxCoeff();
-            // std::cout <<mScreenPixel[i].transpose()<< std::endl;
-            // if(mScreenPixel[i].norm() > 1e-3)
-            // {
-            //     std::cout <<"get color = " << mScreenPixel[i].transpose() << " ";
-            // } 
-            // if(i >= (mWidth * 50 + mWidth / 5)  && i<= (51 * mWidth - mWidth / 5))
-            // {
-            //     // std::cout <<(mWidth * 50 + mWidth / 5) <<" " << (51 * mWidth - mWidth / 5) << std::endl;
-            //     // std::cout << mScreenPixel[i].transpose() << std::endl;
-            //     // std::cout << mScreenPixel[i].transpose() << std::endl;
-            //     std::cout << mScreenRay[i].GetDir().transpose() << std::endl;
-            //     // mScreenPixel[i] = tVector::Ones();
-            // }
-// #ifdef DEBUG_MODE
-//             if(inter == true)
-//             {
-//                 if(i % 100 == 0 && mRayDisplay == true)
-//                 {
-//                     tLine line;
-//                     tVertex vertex;
-//                     // std::cout << pos.transpose() << std::endl;
-//                     line.mOri = ray.GetOri();
-//                     line.mDest = ray.GetOri() + 10e4 * ray.GetDir();
-//                     line.mColor = tVector(0, 1, 0, 1);
-//                     vertex.mPos = pos;
-//                     vertex.mColor = tVector(0.5, 0.5, 0.5, 1);
-// #pragma omp critical
-//                     mDrawLines.push_back(line);
-//                     mDrawPoints.push_back(vertex);
-//                 }
-// #pragma omp critical
-//                 inter_num++;
-//             }
-// #endif
         }
     }
     
-    // std::cout << "[debug] total rays = " << mHeight * mWidth << std::endl;
-    // printf("\n");
-    // std::cout <<"intersections = " << inter_num << std::endl;
-   
-
     std::cout <<"[log] cPathTracer::RayCast end\n";
     cTimeUtil::End();
 
@@ -481,7 +383,9 @@ tVector cPathTracer::RayTracePrimaryRay(const tRay & ray_, int ray_id) const
             indirect_coeff = tVector::Zero();
 
             // 1. raycast, get target face and material
-            target_face = RayCast(ray, ref_pt, mAccelStructure, mSceneMesh, mAABBLst);
+            // target_face = RayCast(ray, ref_pt);
+            target_face = mAccelStruct->RayCast(ray, ref_pt);
+            // target_face = RayCast(ray, ref_pt, mEnableAccelStruct, mSceneMesh, mAABBLst);
             if(target_face == nullptr)
             {
                 final_color = tVector::Zero();
@@ -496,7 +400,8 @@ tVector cPathTracer::RayTracePrimaryRay(const tRay & ray_, int ray_id) const
                 break;
             }
             mat = mSceneMesh->GetMaterial(mat_id);
-
+            // return mat->diffuse;
+            
             // 3. if material is ambient, set up final color, break, do not reflect any more
             if(mat->ambient.norm() > 1e-6)
             {
@@ -524,7 +429,8 @@ tVector cPathTracer::RayTracePrimaryRay(const tRay & ray_, int ray_id) const
                     if(pdf < 1e-10) continue;
 
                     // visible test failed -> no light avaliable, continue
-                    if(false == VisTestForLight(wi_ray.GetOri(), ref_pt, mAccelStructure, mSceneMesh, mAABBLst)) 
+                    // if(false == VisTestForLight(wi_ray.GetOri(), ref_pt, false, mSceneMesh, mAABBLst)) 
+                    if(false == mAccelStruct->VisTest(wi_ray.GetOri(), ref_pt))
                         continue;
 
                     // L_i * cos(theta_i) * cos(theta_0) * A / r^2
@@ -610,140 +516,4 @@ tVector cPathTracer::RayTracePrimaryRay(const tRay & ray_, int ray_id) const
     
     if(color.maxCoeff() > 1) color /= color.maxCoeff();
     return color;
-}
-
-/*
-    ori: the origin of the ray
-    dir: the direction or the ray
-    pos: interseciton points
-    face: pointer to the pointer of a intersection face
-    return bool: intersection or not?
-*/
-tFace * cPathTracer::RayCast(const tRay & ray, tVector & pt, const bool mAccelStructure,const std::shared_ptr<cObjMesh> mSceneMesh,const std::vector<tAABB> & mAABBLst)
-{
-    pt = tVector::Ones() * std::nan("");
-    tFace * target_face = nullptr;
-    double dist = std::numeric_limits<double>::max();
-    std::vector<tFace *> & full_faces = mSceneMesh->GetFaceList();
-    if(mAccelStructure == false)
-    {
-        // std::cout <<" ray ori = " << ray.GetOri().transpose() << std::endl;
-        // std::cout <<"ray dir = " << ray.GetDir().transpose() << std::endl;
-        for(auto &x : full_faces)
-        {
-            tVector p = cMathUtil::RayCast(ray.GetOri(), ray.GetDir(), x->mVertexPtrList[0]->mPos,
-                x->mVertexPtrList[1]->mPos,
-                x->mVertexPtrList[2]->mPos);
-            if(p.hasNaN() == false && (p - ray.GetOri()).norm() < dist && (p-ray.GetOri()).norm() > 1e-6)
-            {
-                pt = p;
-                dist = (p - ray.GetOri()).norm();
-                target_face = x;
-            }
-        }
-    }
-    else
-    {
-        // ray-aabb intersect -> ray face intersect
-        for(auto & box : mAABBLst)
-        {
-            if(box.intersect(ray) == false) continue;
-            for(auto & id : box.mFaceId)
-            {
-                auto & x =  full_faces[id];
-                tVector p = cMathUtil::RayCast(ray.GetOri(), ray.GetDir(), x->mVertexPtrList[0]->mPos,
-                    x->mVertexPtrList[1]->mPos,
-                    x->mVertexPtrList[2]->mPos);
-                if(p.hasNaN() == false && (p - ray.GetOri()).norm() < dist && (p-ray.GetOri()).norm() > 1e-6)
-                {
-                    pt = p;
-                    dist = (p - ray.GetOri()).norm();
-                    target_face = x;
-                }
-            }
-        }
-    }
-
-    return target_face;
-}
-
-// the light is from p1 to p2
-bool cPathTracer::VisTestForLight(const tVector & p1, const tVector & p2,const bool mAccelStructure,const std::shared_ptr<cObjMesh> mSceneMesh,const std::vector<tAABB> & mAABBLst)
-{
-    double dist = (p1 - p2).norm();
-    double cur_min_dist = dist;
-    tVector light_dir = (p2 - p1).normalized();
-    std::vector<tFace *> & full_faces = mSceneMesh->GetFaceList();
-    if(mAccelStructure == false)
-    {
-        // std::cout <<" ray ori = " << ray.GetOri().transpose() << std::endl;
-        // std::cout <<"ray dir = " << ray.GetDir().transpose() << std::endl;
-        for(auto &x : full_faces)
-        {
-            double p = cMathUtil::RayCastT(p1, light_dir, x->mVertexPtrList[0]->mPos,
-                x->mVertexPtrList[1]->mPos,
-                x->mVertexPtrList[2]->mPos);
-            assert(std::isnan(p) || p > -1e-6); // if p <=0, illegal
-
-            // p > 1e-6: in case of the intersection is with light it self
-            if(std::isnan(p) == false && p < cur_min_dist - 1e-6 && p > 1e-6)
-            {
-                cur_min_dist = p;
-                // 如果是0.5附近却不可见，这就不对
-                // if(std::fabs(p2[1] - 0.5) < 1e-10)
-                // {
-                //     std::cout <<"[visible test] pt = " << p2.transpose() << std::endl;
-                //     std::cout <<"dist = " << dist <<" cur dist = " << cur_min_dist << std::endl;
-                //     exit(1);
-                // }
-                // it's invisible if here is an intersect
-                if(cur_min_dist < dist) return false;
-            }
-        }
-    }
-    else
-    {
-        // ray-aabb intersect -> ray face intersect
-        tLine cur_line;
-        cur_line.mOri = p1; cur_line.mDest = p2;
-        for(auto & box : mAABBLst)
-        {
-            if(box.intersect(cur_line) == false) continue;
-            for(auto & id : box.mFaceId)
-            {
-                auto & x =  full_faces[id];
-                double p = cMathUtil::RayCastT(p1, light_dir, x->mVertexPtrList[0]->mPos,
-                    x->mVertexPtrList[1]->mPos,
-                    x->mVertexPtrList[2]->mPos);
-                assert(std::isnan(p) || p > 0);
-                if(std::isnan(p) == false && p < cur_min_dist - 1e-6 && p > 1e-6)
-                {
-                    cur_min_dist = p;
-
-                    // it's invisible if here is an intersect
-                    if(cur_min_dist < dist)
-                    {
-                        // 如果是0.5附近却不可见，这就不对
-                        // if(std::fabs(p2[1] - 0.5) < 1e-10)
-                        // {
-                        //     std::cout <<"[visible test] pt = " << p2.transpose() << std::endl;
-                        //     std::cout <<"dist = " << dist <<" cur dist = " << cur_min_dist << std::endl;
-                        //     exit(1);
-                        // }
-                        return false;
-                        
-                    } 
-                }
-                // if(p.hasNaN() == false && (p - ray.GetOri()).norm() < dist && (p-ray.GetOri()).norm() > 1e-6)
-                // {
-                //     pt = p;
-                //     dist = (p - ray.GetOri()).norm();
-                //     *target_face = x;
-                //     intersect = true;
-                // }
-            }
-        }
-    }
-
-    return true;
 }

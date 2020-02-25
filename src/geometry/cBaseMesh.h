@@ -181,7 +181,6 @@ struct tAABB{
     bool intersect(const tLine & line)const;
     bool intersect(const tFace * face)const;
 };
-
 // methods
 
 void BuildLinesForFace(std::vector<tLine>& lines, const tFace * face);
