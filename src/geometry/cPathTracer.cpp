@@ -524,12 +524,13 @@ tVector cPathTracer::RayTracePrimaryRay(const tRay & ray_, int ray_id) const
                 // }
                 brdf_value = brdf->evaluate(wi_ray.GetDir(), -ray.GetDir(), ref_normal);/* * M_PI * 2;*/
                 direct_color += cMathUtil::WiseProduct(Li * cos_theta_normal_wi / pdf, brdf_value);
-                if(false == direct_color.minCoeff() > -1e-6)
-                {
-                    std::cout <<"direct color negative = " <<  direct_color.transpose() << std::endl;
-                    std::cout <<"Li = " << Li.transpose() << ", theta = " << cos_theta_normal_wi << ", pdf = " << pdf << ", brdf = " << brdf_value.transpose() << std::endl;
-                    exit(1);
-                }
+                assert(direct_color.minCoeff() > -1e-6);
+                // if(false == direct_color.minCoeff() > -1e-6)
+                // {
+                //     std::cout <<"direct color negative = " <<  direct_color.transpose() << std::endl;
+                //     std::cout <<"Li = " << Li.transpose() << ", theta = " << cos_theta_normal_wi << ", pdf = " << pdf << ", brdf = " << brdf_value.transpose() << std::endl;
+                //     exit(1);
+                // }
                 // direct_color += cMathUtil::WiseProduct(Li * cos_theta_normal_wi / pdf, brdf_value) / mSamples;
             }
         }
@@ -553,17 +554,18 @@ tVector cPathTracer::RayTracePrimaryRay(const tRay & ray_, int ray_id) const
         
             direct_light_lst.push_back(direct_color);
             indirect_light_lst.push_back(indirect_coeff);
-            if(indirect_coeff.minCoeff() < -1e-6)
-            {
-                std::cout << " for ray " << ray_id <<" bounce " << bounce <<", normal = " << ref_normal.transpose()<<std::endl;
-                std::cout << "indirect light = " << indirect_coeff.transpose() << std::endl;
-                std::cout <<"brdf = " << brdf_value.transpose() << std::endl;
-                std::cout <<"cos theta = " << ref_normal.dot(wi_dir) << std::endl;
-                std::cout <<"ref_normal = " << ref_normal.transpose() << std::endl;
-                std::cout <<"wi dir = " << wi_dir.transpose() << std::endl;
-                std::cout <<"pdf = " << pdf << std::endl;
-                exit(1);
-            }
+            assert(indirect_coeff.minCoeff() > -1e-10);
+            // if(indirect_coeff.minCoeff() < -1e-6)
+            // {
+            //     std::cout << " for ray " << ray_id <<" bounce " << bounce <<", normal = " << ref_normal.transpose()<<std::endl;
+            //     std::cout << "indirect light = " << indirect_coeff.transpose() << std::endl;
+            //     std::cout <<"brdf = " << brdf_value.transpose() << std::endl;
+            //     std::cout <<"cos theta = " << ref_normal.dot(wi_dir) << std::endl;
+            //     std::cout <<"ref_normal = " << ref_normal.transpose() << std::endl;
+            //     std::cout <<"wi dir = " << wi_dir.transpose() << std::endl;
+            //     std::cout <<"pdf = " << pdf << std::endl;
+            //     exit(1);
+            // }
         }
         else
         {
