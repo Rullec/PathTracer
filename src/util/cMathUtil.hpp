@@ -59,12 +59,14 @@ public:
 	static tVector CalcAngularVelocity(const tQuaternion & old_rot, const tQuaternion & new_rot, double timestep);
 	static tVector QuatRotVec(const tQuaternion & quater, const tVector & vec);
 	static double Radians(double degree);
-
+	static tMatrix InvMat(const tMatrix & mat);
+	
 	// distribution
 	static tVector SampleHemiSphereUniform(const tVector & , double & pdf);
+	static tVector SampleSphereUniform(double & pdf);
 	static tVector SampleHemiSphereCosine(const tVector & , double & pdf);
 	// geometry
 	static tVector RayCast(const tVector & ori, const tVector & dir, const tVector & p1, const tVector & p2, const tVector & p3, double eps = 1e-10);
 	static double RayCastT(const tVector & ori, const tVector & dir, const tVector & p1, const tVector & p2, const tVector & p3, double eps = 1e-10);
-
+	static tMatrix SkewMat(const tVector & vec);
 };

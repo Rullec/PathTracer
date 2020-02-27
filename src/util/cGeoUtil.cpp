@@ -106,28 +106,58 @@ tVector cGeoUtil::CalcNormalFrom3Pts(const tVector &p1, const tVector &p2, const
 /*
 	normal: the normal vector of a surface
 	incoming: the incident light, from an remote pt to the point lying on the surface
+	return: outgoing light from ref_pt to remote pt
 */
 tVector cGeoUtil::Reflect(const tVector & normal, const tVector & incoming)
 {
-	try{
-		if(false == cMathUtil::IsNormalized(normal))
-		{
-			std::cout <<"normal = " << normal.transpose() << std::endl;
-			exit(1);
-		}
-		if(false == cMathUtil::IsNormalized(incoming))
-		{
-			std::cout <<"incoming = " << incoming.transpose() << std::endl;
-			exit(1);
-		}
-		if(false == (normal.dot(incoming) < 0))
-		{
-			// std::cout <<"[reflect] normal = " << normal.transpose() <<", income = " << incoming.transpose() << std::endl;
-			// exit(1);
-		}
-	}
-	catch(...){
-		
-	};
+	assert(cMathUtil::IsNormalized(normal));
+	assert(cMathUtil::IsNormalized(incoming));
+
+	tVector correct_normal = normal;
+	if(normal.dot(incoming) > 0) correct_normal = -normal;
+
 	return 2 * (normal.dot(-incoming)) * normal + incoming;
+}
+
+// ni = n1 / n2, n1是normal所指向材料的折射率，n2是-normal所指向材料的折射率
+// 真空折射率为1, 玻璃折射率为1.5，所以法线朝向空气，入射光从空气来，ni=1/1.5
+tVector cGeoUtil::Refract(const tVector & normal_, const tVector & incoming, double ni)
+{
+	assert(cMathUtil::IsVector(normal_));
+	assert(cMathUtil::IsNormalized(normal_));
+	assert(cMathUtil::IsVector(incoming));
+	assert(cMathUtil::IsNormalized(incoming));
+
+	tVector outgoing = tVector::Zero();
+	// std::cout <<"normal = " << normal << std::endl;
+	tVector normal = normal_;
+	if(normal.dot(incoming) > 0)
+	{
+		normal = -normal;
+		ni = 1.0 / ni;
+	}
+	// assert(ni > 1.0);
+	{
+		// 从外向内
+		/*  incoming /|\ normal
+			   \      |
+			    _\|   |				n1
+			--------------------
+						\			n2
+						 \
+						 _\| outgoing
+		*/
+		// ni = n1 / n2;
+		double ratio = ni;
+		tVector nxi = normal.cross3(incoming);
+		outgoing = ratio * (normal.cross3(-nxi)) - normal * std::sqrt(1 - ratio * ratio * nxi.dot(nxi));
+	}
+	// if(outgoing.hasNaN() == true)
+	// {
+	// 	// 光密到光疏 发生反射
+	// 	assert(ni > 1.0);
+	// 	assert(normal.dot(incoming) < 0);
+	// 	outgoing = cGeoUtil::Reflect(normal, incoming);
+	// }
+	return outgoing;
 }

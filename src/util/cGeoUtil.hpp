@@ -19,4 +19,5 @@ public:
 
 	static tVector CalcNormalFrom3Pts(const tVector &p1, const tVector &p2, const tVector &p3);
 	static tVector Reflect(const tVector & normal, const tVector & incoming);
+	static tVector Refract(const tVector & normal, const tVector & incoming, double ni);
 };

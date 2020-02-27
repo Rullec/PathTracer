@@ -10,7 +10,7 @@ cRTScene::tParams::tParams()
 }
 
 cRTScene::cRTScene(const std::string & config) : cDrawScene(config)
-{
+{ 
     Json::Value root;
     cJsonUtil::ParseJson(config, root);
     Json::Value scene_json = root["Scene"];

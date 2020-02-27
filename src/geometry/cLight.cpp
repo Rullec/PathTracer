@@ -81,6 +81,13 @@ void cSquareLight::Sample_Li(const tVector & ref, tRay & wi_ray, double * pdf)
     // normal test
     tVector ray_dir = (ref - sample_pt).normalized();
     assert(cMathUtil::IsVector(ray_dir));
+    // {
+    //     for(int i=0; i<4; i++) std::cout <<mLightPos[i].transpose() << std::endl;
+    //     std::cout <<"light = " << ray_dir.transpose() << std::endl;
+    //     std::cout <<"sample_pt = " << sample_pt.transpose() << std::endl;
+    //     std::cout <<"ref = " << ref.transpose() << std::endl;
+    //     exit(1);
+    // }
     if(ray_dir.dot(mNormal) <= 0)
     {
         *pdf = 0;

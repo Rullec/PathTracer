@@ -226,6 +226,18 @@ tVector cMathUtil::SampleHemiSphereUniform(const tVector & normal, double & pdf)
 	return res;
 }
 
+tVector cMathUtil::SampleSphereUniform(double &pdf)
+{
+	// assert(std::fabs(normal[3]) < 1e-10);
+	// assert(cMathUtil::IsNormalized(normal));
+	// assert(cMathUtil::IsVector(normal));
+
+	double xi1 = drand48() -0.5, xi2 = drand48() -0.5, xi3 = drand48() -0.5;
+	tVector res = tVector(xi1, xi2, xi3, 0).normalized();
+	pdf = 1.0 / (4 * M_PI);
+	return res;
+}
+
 tVector cMathUtil::SampleHemiSphereCosine(const tVector & normal, double & pdf)
 {
 	assert(std::fabs(normal[3]) < 1e-10);
@@ -249,5 +261,26 @@ tVector cMathUtil::QuatRotVec(const tQuaternion & quater, const tVector & vec)
 {
 	tVector res = tVector::Zero();
 	res.segment(0, 3) = quater * vec.segment(0, 3);
+	return res;
+}
+
+tMatrix cMathUtil::SkewMat(const tVector & w)
+{
+	tMatrix result = tMatrix::Zero();
+	result(0, 1) = -w[2];
+	result(0, 2) = w[1];
+	result(1, 0) = w[2];
+	result(1, 2) = -w[0];
+	result(2, 0) = -w[1];
+	result(2, 1) = w[0];
+	result(3, 3) = 1;
+	
+	return result;
+}
+
+tMatrix cMathUtil::InvMat(const tMatrix & mat)
+{
+	tMatrix res = tMatrix::Identity();
+	res.block(0,0,3,3) = mat.block(0, 0, 3, 3).inverse();
 	return res;
 }

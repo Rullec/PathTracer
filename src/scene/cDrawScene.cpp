@@ -15,6 +15,7 @@ cDrawScene::cDrawScene(const std::string & config):cScene()
 {
 	// init value
 	mDataReload = true;
+	mDrawAxis = true;
 
 	// build render
 	BuildRender(config, mRender);
@@ -27,6 +28,8 @@ cDrawScene::cDrawScene(const std::string & config):cScene()
 	// build camera, set camera
 	mCamera = BuildCamera(config);
 	mRender->SetCamera(mCamera);
+
+	ParseConfig(config);
 }
 
 cDrawScene::~cDrawScene()
@@ -70,14 +73,18 @@ void cDrawScene::Update()
 
 void cDrawScene::ParseConfig(const std::string & conf)
 {
-
+	Json::Value root;
+	cJsonUtil::ParseJson(conf, root);
+	mDrawAxis = root["Scene"]["EnableDrawAxis"].asBool();
+	// std::cout <<"draw axis = " << mDrawAxis << std::endl;
+	// exit(1);
 }
 
 
 void cDrawScene::DrawScene()
 {
 	// std::cout <<"add axis\n" << std::endl;
-	DrawAxis();
+	if(mDrawAxis) DrawAxis();
 }
 
 void cDrawScene::DrawAxis()

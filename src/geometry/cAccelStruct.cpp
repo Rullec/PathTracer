@@ -383,12 +383,7 @@ void cOctree::Init(std::shared_ptr<cBaseMesh> mesh)
         // put cur face into this tree
         AddFace(root, face);
     }
-<<<<<<< HEAD
-    PrintTree();
-=======
     // PrintTree();
->>>>>>> master
-    // exit(1);
 }
 
 bool cOctree::AddFace(tOctreeNode * cur_node, tFace * face)

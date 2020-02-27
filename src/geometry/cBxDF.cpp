@@ -1,39 +1,62 @@
 #include "cBxDF.hpp"
 #include <geometry/cBaseMesh.h>
+#include <geometry/cAccelStruct.hpp>
 #include <util/cGeoUtil.hpp>
+#include "cLight.hpp"
 
 cBxDF::cBxDF()
 {
-    mIsLight = false;
+    // mIsLight = false;
     mType = eBxDFType::INVALID;
+}
+
+/*
+  wo_ray: from remote point to this reference point, the direction is opposite to a normal definition.
+*/
+tVector cBxDF::Sample_Li(const std::vector<std::shared_ptr<cLight>> & lights, cAccelStruct * mAccelStruct, const tVector & ref_normal, const tVector & ref_pt, const tRay & wo_ray)
+{
+    tRay wi_ray;
+    double pdf;
+    tVector direct_color = tVector::Zero();
+    for(auto & cur_light : lights)
+    {
+        assert(eLightType::SQUARE == cur_light->GetType());
+        // 从光源中采样一个点，
+        tVector Li = cur_light->GetRadiance();
+        // wi_ray: from light source to pt
+        // pdf = r^2 / (A * cos_theta_0), if illegal, pdf = 0
+        cur_light->Sample_Li(ref_pt, wi_ray, &pdf);
+
+        // intersect with myself?
+        if(pdf < 1e-10) continue;
+
+        // visible test failed -> no light avaliable, continue
+        // if(false == VisTestForLight(wi_ray.GetOri(), ref_pt, false, mSceneMesh, mAABBLst)) 
+        if(false == mAccelStruct->VisTest(wi_ray.GetOri(), ref_pt))
+            continue;
+
+        // L_i * cos(theta_i) * cos(theta_0) * A / r^2
+        // = L_i * cos(theta_i) / p(w)
+        assert(cMathUtil::IsVector(wi_ray.GetDir()));
+        assert(cMathUtil::IsNormalized(wi_ray.GetDir()));
+        double cos_theta_normal_wi = ref_normal.dot(-wi_ray.GetDir());
+        if(cos_theta_normal_wi < 0) continue;
+
+        tVector brdf_value = this->evaluate(wi_ray.GetDir(), -wo_ray.GetDir(), ref_normal);/* * M_PI * 2;*/
+        direct_color += cMathUtil::WiseProduct(Li * cos_theta_normal_wi / pdf, brdf_value);
+        assert(direct_color.minCoeff() > -1e-6);
+        
+    }
+    return direct_color;
 }
 
 // brdf
 cBRDF::cBRDF(const tVector& ka, const tVector&  kd, const double& ns, const tVector& ks):
     mKa(ka), mKd(kd), mNs(ns), mKs(ks)
 {
-    if(ka.norm() > 1e-5)
-    {
-        mIsLight = true;
-    }
-    // std::cout <<"[debug] cBSDF::cBSDF get ka = " << mKa.transpose() <<"\n"
-    // << "kd = " << mKd.transpose() <<"\n"
-    // << "ni = " << mNi <<"\n"
-    // << "ns = " << mNs <<"\n"
-    // << "ks = " << mKs.transpose() <<"\n";
+    mType = eBxDFType::BRDF;
 }
 
-tVector cBRDF::Sample_f()
-{
-    if(mIsLight) return tVector::Zero();
-
-    return tVector::Zero();
-}
-
-double cBRDF::pdf(const tVector & wi, const tVector & wo)
-{
-    return 1.0;
-}
 /*
     wi: light to ref pt
     wo: ref pt to outgoing
@@ -52,6 +75,21 @@ tVector cBRDF::evaluate(const tVector & wi, const tVector & wo, const tVector & 
     return mKd / M_PI + mKs * (mNs + 2) / ( 2 * M_PI) * pow(cos_alpha, mNs);
 }
 
+/*
+    @Function: Sample_f
+        sample the (Phong) lobe 
+    @params: ref_normal Type const tVector &, the normal in this reflection point (aka ref point)
+    @params: wo Type const tVector &, the outgoing light in this point, which is ref_pt->outside, opposite to the direction of primary ray
+    @params: wi_dir Type tVector &, this value will be CHANGED, it means the sampled income light direction which is outside -> this ref point.
+*/
+tVector cBRDF::Sample_f(const tVector & ref_normal, const tVector & wo, tVector & wi_dir)
+{
+    double pdf;
+    wi_dir = cMathUtil::SampleHemiSphereUniform(ref_normal, pdf);
+    // wi_ray.Init(ref_pt, -wi_dir);   // wi_ray from light src to ref_pt
+    return evaluate(-wi_dir, wo, ref_normal) * ref_normal.dot(wi_dir) / pdf;
+}
+
 // bsdf
 cBSDF::cBSDF(const tVector& ka, const tVector&  kd, const double& ni, \
 const double& ns, const tVector& ks):
@@ -62,20 +100,9 @@ const double& ns, const tVector& ks):
     << "ni = " << mNi <<"\n"
     << "ns = " << mNs <<"\n"
     << "ks = " << mKs.transpose() <<"\n";
-
-    if(mKa.norm() > 1e-5) mIsLight = true;
+    mType = eBxDFType::BSDF;
 }
 
-tVector cBSDF::Sample_f()
-{
-    if(mIsLight) return tVector::Zero();
-    return tVector::Zero();
-}
-
-double cBSDF::pdf(const tVector & wi, const tVector & wo)
-{
-    return 1.0;
-}
 
 std::shared_ptr<cBxDF> BuildBxDF(tMaterial * material)
 {
@@ -95,21 +122,85 @@ std::shared_ptr<cBxDF> BuildBxDF(tMaterial * material)
 
     // std::cout <<"Ni = " << Ni << std::endl;
     std::shared_ptr<cBxDF> bxdf;
+    
     if(cMathUtil::IsSame(Ni, 1.0))
     {
         bxdf = std::shared_ptr<cBxDF>(new cBRDF(Ka, Kd, Ns, Ks));
+        // std::cout <<"brdf\n";
     }
     else
     {
         // build BSDF
         bxdf = std::shared_ptr<cBxDF>(new cBSDF(Ka, Kd, Ni, Ns, Ks));
+        // std::cout <<"bsdf\n";
     }
 
-    // bxdf = std::shared_ptr<cBxDF>(new cBRDF(Ka, Kd, Ni, Ns, Ks));
+    // bxdf = std::shared_ptr<cBxDF>(new cBRDF(Ka, Kd, Ns, Ks));
     return bxdf;
 }
 
-tVector cBSDF::evaluate(const tVector & v1, const tVector & v2, const tVector & normal)
+// when bsdf receive wo, it should in the whole sphere but no semi-sphere...
+/*
+    wi: light to ref pt
+    wo: ref pt to outgoing
+
+    brdf = kd / pi + ks * (n + 2) / (2 * pi) * cos^n(alpha)
+    alpha: the angle between ideal specular outgoing and true outgoing
+*/
+tVector cBSDF::evaluate(const tVector & wi, const tVector & wo, const tVector & normal)
 {
-    return tVector::Zero();
+
+    assert(cMathUtil::IsVector(wi) && cMathUtil::IsNormalized(wi));
+    assert(cMathUtil::IsVector(wo) && cMathUtil::IsNormalized(wo));
+    assert(cMathUtil::IsVector(normal) && cMathUtil::IsNormalized(normal));
+
+    tVector value = tVector::Zero();
+    tVector ideal_wo = tVector::Zero();
+    ideal_wo = cGeoUtil::Refract(normal, wi, 1.0 / mNi);
+    if(ideal_wo.hasNaN() == true)
+    {
+        ideal_wo = cGeoUtil::Reflect(normal, wi);
+    }
+
+    double cos_theta = ideal_wo.dot(wo);
+    if(cos_theta < 0) cos_theta = 0;
+    const int coef = 1;
+    value = tVector::Ones() / (4 * M_PI) * pow(cos_theta, coef);
+    // value = tVector::Ones() * (coef + 1) / (4 * M_PI) * pow(cos_theta, coef);
+
+    assert(value.hasNaN() == false);
+    return value;
+}
+
+/*
+    wo: outgoing light, ref_pt -> remote_pt
+    wi_oppo: incoming light oppo, ref_pt -> remote_pt
+    @return: bsdf value 
+*/
+tVector cBSDF::Sample_f(const tVector & ref_normal, const tVector & wo, tVector & wi_oppo)
+{
+    double pdf = 1.0 / ( 4 * M_PI);
+    // wi_oppo = cMathUtil::SampleSphereUniform(pdf);
+    wi_oppo = cGeoUtil::Refract(ref_normal, -wo, 1.0 / 1.5);
+
+    if(wi_oppo.hasNaN() == true)
+    {
+        // nan的时候，一定是光密到光疏
+        wi_oppo = cGeoUtil::Reflect(ref_normal, -wo);
+    }
+    for(int i=0; i<3; i++) wi_oppo[i] += (drand48() - 0.5) * 0.1;
+    wi_oppo.normalize();
+
+    tVector bsdf_value = tVector::Zero();
+    bsdf_value = evaluate(-wi_oppo, wo, ref_normal);
+    assert(bsdf_value.minCoeff() > -1e-6);
+
+    tVector indirect_coef = bsdf_value / (pdf) * std::fabs(wi_oppo.dot(ref_normal));
+    if(indirect_coef.minCoeff() < -1e-6)
+    {
+        std::cout << indirect_coef << std::endl;
+        exit(1);
+    }
+    assert(indirect_coef.hasNaN() == false);
+    return indirect_coef;
 }

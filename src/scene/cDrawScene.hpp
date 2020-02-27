@@ -29,4 +29,7 @@ protected:
 	void DrawAxis();
 	void DrawGround();
 	void ParseConfig(const std::string & conf);
+
+private:
+	bool mDrawAxis;
 };
