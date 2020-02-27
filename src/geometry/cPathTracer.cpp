@@ -109,6 +109,7 @@ void cPathTracer::InitBxDF()
         mBxDF.push_back(BuildBxDF(obj_mesh->GetMaterial(i)));
     }
     std::cout <<"[cPathTracer] Init bxdf succ " << mBxDF.size() << std::endl;
+    // exit(1);
 }
 
 void cPathTracer::GenerateRay()

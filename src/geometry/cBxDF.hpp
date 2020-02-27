@@ -24,23 +24,23 @@ class cBRDF : public cBxDF
 {
     // diffuse + specular
 public:
-    cBRDF(const tVector& ka, const tVector&  kd, const double& ni, const double& ns, const tVector& ks);
+    cBRDF(const tVector& ka, const tVector&  kd, const double& ns, const tVector& ks);
     virtual tVector Sample_f() override;
     virtual double pdf(const tVector & wi, const tVector & wo) override;
     virtual tVector evaluate(const tVector & wi, const tVector & wo, const tVector & normal) override;
 protected:
     const tVector mKa, mKd, mKs;
-    const double  mNi, mNs;
+    const double mNs;
 };
 
 class cBSDF: public cBxDF{
 public:
-    cBSDF(const tVector& ka, const tVector&  kd, const double& ni, const double& ns, const tVector& ks, const tVector& tf);
+    cBSDF(const tVector& ka, const tVector&  kd, const double& ni, const double& ns, const tVector& ks);
     virtual tVector Sample_f() override;
     virtual double pdf(const tVector & wi, const tVector &  wo) override;
     virtual tVector evaluate(const tVector & wi, const tVector & wo, const tVector & normal) override;
 protected:
-    const tVector mKa, mKd, mKs, mTf;
+    const tVector mKa, mKd, mKs;
     const double  mNi, mNs;
 };
 

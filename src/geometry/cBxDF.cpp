@@ -9,8 +9,8 @@ cBxDF::cBxDF()
 }
 
 // brdf
-cBRDF::cBRDF(const tVector& ka, const tVector&  kd, const double& ni, const double& ns, const tVector& ks):
-    mKa(ka), mKd(kd), mNi(ni), mNs(ns), mKs(ks)
+cBRDF::cBRDF(const tVector& ka, const tVector&  kd, const double& ns, const tVector& ks):
+    mKa(ka), mKd(kd), mNs(ns), mKs(ks)
 {
     if(ka.norm() > 1e-5)
     {
@@ -54,15 +54,14 @@ tVector cBRDF::evaluate(const tVector & wi, const tVector & wo, const tVector & 
 
 // bsdf
 cBSDF::cBSDF(const tVector& ka, const tVector&  kd, const double& ni, \
-const double& ns, const tVector& ks, const tVector& tf):
-    mKa(ka), mKd(kd), mNi(ni), mNs(ns), mKs(ks), mTf(tf)
+const double& ns, const tVector& ks):
+    mKa(ka), mKd(kd), mNi(ni), mNs(ns), mKs(ks)
 {
     std::cout <<"[debug] cBSDF::cBSDF get ka = " << mKa.transpose() <<"\n"
     << "kd = " << mKd.transpose() <<"\n"
     << "ni = " << mNi <<"\n"
     << "ns = " << mNs <<"\n"
-    << "ks = " << mKs.transpose() <<"\n"
-    << "tf = " << mTf.transpose() <<"\n";
+    << "ks = " << mKs.transpose() <<"\n";
 
     if(mKa.norm() > 1e-5) mIsLight = true;
 }
@@ -94,18 +93,19 @@ std::shared_ptr<cBxDF> BuildBxDF(tMaterial * material)
     const tVector & Ks = material->specular;// 高光项颜色
     const tVector & Tf = material->transmittance;    // 透射颜色
 
+    // std::cout <<"Ni = " << Ni << std::endl;
     std::shared_ptr<cBxDF> bxdf;
-    // if(Tf.norm() > 1e-5)
-    // {
-    //     // build BSDF
-    //     bxdf = std::shared_ptr<cBxDF>(new cBSDF(Ka, Kd, Ni, Ns, Ks, Tf));
-    // }
-    // else
-    // {
-    //     bxdf = std::shared_ptr<cBxDF>(new cBRDF(Ka, Kd, Ni, Ns, Ks));
-    // }
+    if(cMathUtil::IsSame(Ni, 1.0))
+    {
+        bxdf = std::shared_ptr<cBxDF>(new cBRDF(Ka, Kd, Ns, Ks));
+    }
+    else
+    {
+        // build BSDF
+        bxdf = std::shared_ptr<cBxDF>(new cBSDF(Ka, Kd, Ni, Ns, Ks));
+    }
 
-    bxdf = std::shared_ptr<cBxDF>(new cBRDF(Ka, Kd, Ni, Ns, Ks));
+    // bxdf = std::shared_ptr<cBxDF>(new cBRDF(Ka, Kd, Ni, Ns, Ks));
     return bxdf;
 }
 

@@ -43,6 +43,7 @@ public:
 	// 	return (v1 - v2).norm() < eps;
 	// }
 	static bool IsSame(const tVector & v1, const tVector & v2, const double eps = 1e-5);
+	static bool IsSame(const double & v1, const double & v2, const double eps = 1e-5);
 	static bool IsNormalized(const tVector & v);
 	static bool JudgeInRange(double val, double thre0, double thre1, double eps = 1e-5);
 	static bool IsPoint(const tVector & v);

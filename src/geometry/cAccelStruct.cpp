@@ -347,8 +347,6 @@ void tOctreeNode::split(std::shared_ptr<cBaseMesh> mesh, int capacity)
             std::cout << "z " << this->mbox.bound[2].transpose()<< std::endl;
             
             exit(1);
-
-
         }
     }
     mbox.mFaceId.clear();
@@ -385,7 +383,7 @@ void cOctree::Init(std::shared_ptr<cBaseMesh> mesh)
         // put cur face into this tree
         AddFace(root, face);
     }
-    PrintTree();
+    // PrintTree();
     // exit(1);
 }
 

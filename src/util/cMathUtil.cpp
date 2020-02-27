@@ -99,6 +99,11 @@ bool cMathUtil::IsSame(const tVector & v1, const tVector & v2, const double eps)
 	return true;
 }
 
+bool cMathUtil::IsSame(const double & v1, const double & v2, const double eps)
+{
+	return std::fabs(v1 - v2) < eps;
+}
+
 bool cMathUtil::IsNormalized(const tVector & v)
 {
 	return std::abs(v.norm() - 1) < 1e-10;
