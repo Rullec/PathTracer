@@ -161,3 +161,57 @@ tVector cGeoUtil::Refract(const tVector & normal_, const tVector & incoming, dou
 	// }
 	return outgoing;
 }
+
+tVector cGeoUtil::CalcBarycentricCoordinate(const tVector & p_, const tVector & a, const tVector & b, const tVector & c)
+{
+	assert(cMathUtil::IsPoint(p_));
+	assert(cMathUtil::IsPoint(a));
+	assert(cMathUtil::IsPoint(b));
+	assert(cMathUtil::IsPoint(c));
+	// std::cout <<"debgu begin bary centric coords assert\n";
+	tVector normal1 = cGeoUtil::CalcNormalFrom3Pts(p_, a, b), normal2 = cGeoUtil::CalcNormalFrom3Pts(p_, b, c);
+	if(false == cMathUtil::IsSame(normal1, normal2))
+	{
+		std::cout <<"v1 = " << a.transpose() << std::endl;
+		std::cout <<"v2 = " << b.transpose() << std::endl;
+		std::cout <<"v3 = " << c.transpose() << std::endl;
+		std::cout <<"normal1 = " << normal1.transpose() <<", normal2 = " << normal2.transpose() << std::endl;
+		exit(1);
+	}
+
+	// // https://www.gamedev.net/forums/topic/621445-barycentric-coordinates-c-code-check/
+	// tVector res = tVector::Zero();
+	// double den = 1 / ((b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y));
+
+	// res.x = ((b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y)) * den;
+	// res.y = ((c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y)) * den;
+	// res.z = 1 - p.x - p.y;
+
+	// std::cout <<"debgu begin bary centric coords inv\n";
+	tVector p = p_;
+	Eigen::Matrix3d A;
+	A.col(0) = a.segment(0, 3);
+	A.col(1) = b.segment(0, 3);
+	A.col(2) = c.segment(0, 3);
+	const double eps = 1e-6;
+	for(int i=0; i<3; i++) 
+	{
+		if(A.row(i).norm() < 1e-10)
+		{
+			A.row(i) += Eigen::Vector3d::Ones() * eps;
+			p[i] += eps;
+		}
+	}
+	// std::cout <<"debgu begin bary centric coords calc1\n";
+	Eigen::Vector3d res = A.inverse() * p.segment(0, 3);
+	// std::cout <<"debgu begin bary centric coords calc2\n";
+	if(res.hasNaN())
+	{
+		std::cout <<"res = " << res.transpose() << std::endl;
+		std::cout <<"a = " << a.transpose() << std::endl;
+		std::cout <<"b = " << b.transpose() << std::endl;
+		std::cout <<"c = " << c.transpose() << std::endl;
+		std::cout <<"p = " << p.transpose() << std::endl;
+	}
+	return tVector(res[0], res[1], res[2], 0).normalized();
+}

@@ -5,6 +5,10 @@ class cBaseCamera;
 class cLight;
 class cBxDF;
 class cAccelStruct;
+struct tDrawRegion{
+    int stX, edX, stY, edY;
+};
+
 class cPathTracer
 {
 public: 
@@ -30,7 +34,9 @@ private:
     bool mRayDisplay;
     bool mOpenResult;
     bool mEnableIndrectLight;
+    bool mEnableBarycentricNormal;
     bool mDrawLight;
+    struct tDrawRegion mDrawRegion;
     std::string mResultPath;
     // int mDivide;
     int mMaxDepth;

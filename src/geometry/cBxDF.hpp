@@ -51,6 +51,7 @@ public:
 protected:
     const tVector mKa, mKd, mKs;
     const double  mNi, mNs;
+    double R0;
 };
 
 std::shared_ptr<cBxDF> BuildBxDF(tMaterial * mat);

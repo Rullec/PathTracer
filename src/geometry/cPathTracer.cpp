@@ -54,6 +54,7 @@ void cPathTracer::Init(std::shared_ptr<cBaseMesh> scene_mesh, std::shared_ptr<cB
     // init draw resources
     mDrawLines.clear();
     mDrawPoints.clear();
+
 }
 
 void RayToLine(const tRay & ray, tLine & line)
@@ -222,8 +223,18 @@ void cPathTracer::ParseConfig(const std::string & conf)
     mSamples = path_tracer_json["Samples"].asInt();
     mEnableIndrectLight = path_tracer_json["EnableIndirectLight"].asBool();
     mDrawLight = path_tracer_json["DrawLight"].asBool();
+    mEnableBarycentricNormal = path_tracer_json["EnableBarycentricNormal"].asBool();
     mAccelStruct = BuildAccelStruct(path_tracer_json["RayCastAccel"]);
-
+    
+    {
+        Json::Value DrawRegion_json = path_tracer_json["DrawRegion"];
+        assert(DrawRegion_json.isNull()==false && DrawRegion_json.size() == 4);
+        mDrawRegion.stX = DrawRegion_json[0].asInt();
+        mDrawRegion.stY = DrawRegion_json[1].asInt();
+        mDrawRegion.edX = DrawRegion_json[2].asInt();
+        mDrawRegion.edY = DrawRegion_json[3].asInt();
+        printf("[debug] draw region = (%d, %d) to (%d, %d)\n", mDrawRegion.stX, mDrawRegion.stY, mDrawRegion.edX, mDrawRegion.edY);
+    }
     assert(mAccelStruct != nullptr);
     assert(mMaxDepth > 0);
     assert(mResultPath.size() > 0);
@@ -257,7 +268,7 @@ void cPathTracer::OutputImage()
     // std::cout <<"Res = " << res << std::endl;
 #endif
 }
-// std::vector<tVector> reflection_pts;
+std::vector<tVector> reflection_pts;
 void cPathTracer::GetDrawResources(std::vector<tLine> & lines, std::vector<tVertex> & pts, std::vector<tFace> & faces)
 {
     lines = mDrawLines;
@@ -305,7 +316,6 @@ void cPathTracer::GetDrawResources(std::vector<tLine> & lines, std::vector<tVert
         }
     }
 
-
     // test normal
     // double pdf;
     // tVertex v;
@@ -320,70 +330,107 @@ void cPathTracer::GetDrawResources(std::vector<tLine> & lines, std::vector<tVert
     // std::cout << sum.transpose() << std::endl;
 
     // test fraction
-    {
-        // std::cout <<  << std::endl;
-        std::shared_ptr<cBxDF> bxdf = nullptr;
-        for(int i=0; i< mBxDF.size(); i++)
-        {
-            if(mBxDF[i]->GetType() == eBxDFType::BSDF)
-            {
-                bxdf = mBxDF[i];
-                std::cout << i <<" is bsdf\n"<< std::endl;
-                break;
-            }
+    // {
+    //     // std::cout <<  << std::endl;
+    //     std::shared_ptr<cBxDF> bxdf = nullptr;
+    //     for(int i=0; i< mBxDF.size(); i++)
+    //     {
+    //         if(mBxDF[i]->GetType() == eBxDFType::BSDF)
+    //         {
+    //             bxdf = mBxDF[i];
+    //             std::cout << i <<" is bsdf\n"<< std::endl;
+    //             break;
+    //         }
             
-        } 
-        // tVector in_dir = -tVector(drand48(), drand48(), 1, 0).normalized();
-        double pdf;
-        tVector normal = tVector(0, 1, 0, 0).normalized();
-        // tVector normal = cMathUtil::SampleHemiSphereUniform(tVector(0, 1, 0, 0), pdf);
-        tLine income, refract_out, normal_line;
-        // 0.0951017 -0.746427  0.658637
-        tVector in_dir = tVector(-0.022489,  0.537434, -0.843006, 0).normalized();
-        // tVector in_dir = cMathUtil::SampleHemiSphereUniform(-normal, pdf).normalized();
-        income.mOri = tVector(0, 0, 0, 1) - 2 * in_dir;
-        income.mDest = tVector(0, 0, 0, 1);
-        income.mColor = tVector(1, 1, 1, 1);
-        normal_line.mOri = tVector(0, 0, 0, 1);
-        normal_line.mDest = normal * 2;
-        normal_line.mColor = tVector(0.5, 0.5, 0.5, 1);
-        refract_out.mOri = tVector(0, 0, 0, 1);
-        refract_out.mDest = cGeoUtil::Refract(normal, in_dir, 1.0 / 1.5) * 2;
-        // assert(refract_out.mDest.hasNaN() == false);
-        refract_out.mColor = tVector(0, 0, 0, 1);
-        lines.push_back(income);
-        lines.push_back(refract_out);
-        lines.push_back(normal_line);
-        for(int i=0; i<10000; i++)
-        {
-            // tVector in_dir = -cMathUtil::SampleHemiSphereUniform(normal, pdf);
-            tVector wo_dir = cMathUtil::SampleSphereUniform(pdf).normalized();
-            tVector bxdf_value = bxdf->evaluate(in_dir, wo_dir, normal);
-            normal_line.mOri = tVector(0, 0, 0, 1);
-            normal_line.mDest = wo_dir;
-            normal_line.mColor = tVector::Ones() * bxdf_value.norm();
-            if(bxdf_value.hasNaN() == true) normal_line.mColor = tVector(0.5, 0.1, 0.9, 1);
-            lines.push_back(normal_line);
-            // std::cout <<"bxdf_value = " << bxdf_value.transpose() << std::endl;
-        }
+    //     } 
+    //     // tVector in_dir = -tVector(drand48(), drand48(), 1, 0).normalized();
+    //     double pdf;
+    //     tVector normal = tVector(0, 1, 0, 0).normalized();
+    //     // tVector normal = cMathUtil::SampleHemiSphereUniform(tVector(0, 1, 0, 0), pdf);
+    //     tLine income, refract_out, normal_line;
+    //     // 0.0951017 -0.746427  0.658637
+    //     tVector in_dir = tVector(-0.022489,  0.537434, -0.843006, 0).normalized();
+    //     // tVector in_dir = cMathUtil::SampleHemiSphereUniform(-normal, pdf).normalized();
+    //     income.mOri = tVector(0, 0, 0, 1) - 2 * in_dir;
+    //     income.mDest = tVector(0, 0, 0, 1);
+    //     income.mColor = tVector(1, 1, 1, 1);
+    //     normal_line.mOri = tVector(0, 0, 0, 1);
+    //     normal_line.mDest = normal * 2;
+    //     normal_line.mColor = tVector(0.5, 0.5, 0.5, 1);
+    //     refract_out.mOri = tVector(0, 0, 0, 1);
+    //     refract_out.mDest = cGeoUtil::Refract(normal, in_dir, 1.0 / 1.5) * 2;
+    //     // assert(refract_out.mDest.hasNaN() == false);
+    //     refract_out.mColor = tVector(0, 0, 0, 1);
+    //     lines.push_back(income);
+    //     lines.push_back(refract_out);
+    //     lines.push_back(normal_line);
+    //     for(int i=0; i<10000; i++)
+    //     {
+    //         // tVector in_dir = -cMathUtil::SampleHemiSphereUniform(normal, pdf);
+    //         tVector wo_dir = cMathUtil::SampleSphereUniform(pdf).normalized();
+    //         tVector bxdf_value = bxdf->evaluate(in_dir, wo_dir, normal);
+    //         normal_line.mOri = tVector(0, 0, 0, 1);
+    //         normal_line.mDest = wo_dir;
+    //         normal_line.mColor = tVector::Ones() * bxdf_value.norm();
+    //         if(bxdf_value.hasNaN() == true) normal_line.mColor = tVector(0.5, 0.1, 0.9, 1);
+    //         lines.push_back(normal_line);
+    //         // std::cout <<"bxdf_value = " << bxdf_value.transpose() << std::endl;
+    //     }
         
-        std::cout <<"白色 入射\n";
-        std::cout <<"灰色 法向\n";
-        std::cout <<"黑色 折射\n";
+    //     std::cout <<"白色 入射\n";
+    //     std::cout <<"灰色 法向\n";
+    //     std::cout <<"黑色 折射\n";
+    // }
+
+    tLine line;
+    for(int i=0; i<reflection_pts.size(); i++)
+    {
+        tVertex v;
+        v.mPos = reflection_pts[i];
+        v.mColor = tVector::Ones() * 0.1 * i + tVector::Ones() * 0.5;
+        pts.push_back(v);
+        if(i == reflection_pts.size() -1) continue;
+        line.mOri = reflection_pts[i];
+        line.mDest = reflection_pts[i+1];
+        lines.push_back(line);
     }
 
-    // tLine line;
-    // for(int i=0; i<reflection_pts.size(); i++)
+
+    // barycentric coordinates test code
+    // for(int i=0; i<10000; i++)
     // {
-    //     tVertex v;
-    //     v.mPos = reflection_pts[i];
-    //     v.mColor = tVector::Ones() * 0.1 * i + tVector::Ones() * 0.5;
-    //     pts.push_back(v);
-    //     if(i == reflection_pts.size() -1) continue;
-    //     line.mOri = reflection_pts[i];
-    //     line.mDest = reflection_pts[i+1];
-    //     lines.push_back(line);
+    //     tVertex vertex;
+    //     tVector v[3];
+    //     tVector weight = tVector::Zero();
+    //     tVector res = tVector::Zero();
+    //     tFace f;
+    //     for(int j=0; j<3; j++)
+    //     {
+    //         v[j] = tVector::Random();
+    //         weight[j] = drand48();
+    //         v[j][3] = 1;
+    //         res += v[j] * weight[j];
+    //         f.mVertexPtrList[j] = new tVertex();
+    //         f.mVertexPtrList[j]->mPos = v[j];
+    //     }
+    //     double scale = weight.sum();
+    //     // std::cout <<"debug scale = " << scale << std::endl;
+    //     weight /= scale;
+    //     res /= scale;
+    //     res[3] = 1;
+    //     // std::cout <<"[debug] begin calc barycentric coords\n";
+    //     tVector bary_coor = cGeoUtil::CalcBarycentricCoordinate(res, v[0], v[1], v[2]);
+    //     // std::cout <<"[debug] end calc barycentric coords\n";
+    //     // std::cout <<"weight ideal = " << weight.transpose() << std::endl;
+    //     // std::cout <<"weight calc = " << bary_coor.transpose() << std::endl;
+    //     assert(cMathUtil::IsSame(weight, bary_coor));
+    //     vertex.mPos = res;
+    //     pts.push_back(vertex);
+    //     faces.push_back(f);
     // }
+    
+
+    // exit(1);
 }
 
 void cPathTracer::RayTracing()
@@ -401,8 +448,10 @@ void cPathTracer::RayTracing()
     for(int x = 0; x< mHeight; x++)
     {
         printf("\rprogress: %.3f%%\n", inter_num++ * 100.0 / (mHeight));
+        if(x<mDrawRegion.stX || x>mDrawRegion.edX) continue;
         for(int y = 0; y< mWidth; y++)
         {
+            if(y<mDrawRegion.stY || y>mDrawRegion.edY) continue;
             // if(i%10 !=0) continue;
             int i = x * mWidth + y;
             mScreenPixel[i] = tVector::Zero();
@@ -422,6 +471,8 @@ void cPathTracer::RayTracing()
 
 tVector cPathTracer::RayTracePrimaryRay(const tRay & ray_, int ray_id) const
 {
+
+    int height = ray_id / mWidth, width = ray_id % mWidth;
     assert(cMathUtil::IsPoint(ray_.GetOri()));
     assert(cMathUtil::IsVector(ray_.GetDir()));
     tRay ray;
@@ -479,7 +530,18 @@ tVector cPathTracer::RayTracePrimaryRay(const tRay & ray_, int ray_id) const
 
             bxdf = mBxDF[mat_id];
             tVertex ** vertex_lst = target_face->mVertexPtrList;
-            ref_normal = ((vertex_lst[1]->mPos - vertex_lst[0]->mPos).cross3(vertex_lst[2]->mPos - vertex_lst[1]->mPos)).normalized();
+            if(true == mEnableBarycentricNormal)
+            {
+                tVector bary_coords = cGeoUtil::CalcBarycentricCoordinate(ref_pt, vertex_lst[0]->mPos, vertex_lst[1]->mPos, vertex_lst[2]->mPos);
+                ref_normal = tVector::Zero();
+                for(int i=0; i<3; i++ ) ref_normal += bary_coords[i] * vertex_lst[i]->mNormal;
+                ref_normal.normalize();
+            }
+            else
+            {
+                ref_normal = cGeoUtil::CalcNormalFrom3Pts(vertex_lst[0]->mPos, vertex_lst[1]->mPos, vertex_lst[2]->mPos);
+            }
+            
             // if(0 == bounce) first_normal = ref_normal;
 
             // if(ray_id == 156836)
@@ -488,7 +550,9 @@ tVector cPathTracer::RayTracePrimaryRay(const tRay & ray_, int ray_id) const
             //     if(reflection_pts.size() < mMaxDepth)
             //         reflection_pts.push_back(ref_pt);
             // }
-
+            if(height == 400 && width == 274)
+                if(reflection_pts.size() < mMaxDepth)
+                    reflection_pts.push_back(ref_pt);
             // 4. calculate direct light
             direct_color = bxdf->Sample_Li(mLight, mAccelStruct.get(), ref_normal, ref_pt, ray);
             direct_light_lst.push_back(direct_color);
@@ -527,6 +591,8 @@ tVector cPathTracer::RayTracePrimaryRay(const tRay & ray_, int ray_id) const
                 final_color /= final_color.maxCoeff();
             }
         }
+        if(height == 400 && width == 274)
+        std::cout <<"final color " << s <<" " << final_color.transpose() << std::endl;
         color += final_color /mSamples;
     }
     // if(first_cast_bsdf && std::fabs(first_normal[1] -1) < 1e-6 && ray_id == 156836)
@@ -536,6 +602,10 @@ tVector cPathTracer::RayTracePrimaryRay(const tRay & ray_, int ray_id) const
     //     // color = tVector(0.2, 0.4, 0.5, 1);
     //     // color *=2;
     // }
+    if(height == 400 && width == 274)
+    {
+        std::cout <<"color = " << color.transpose() << std::endl;
+    }
     if(color.maxCoeff() > 1) color /= color.maxCoeff();
     return color;
 }

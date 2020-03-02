@@ -101,6 +101,9 @@ const double& ns, const tVector& ks):
     << "ns = " << mNs <<"\n"
     << "ks = " << mKs.transpose() <<"\n";
     mType = eBxDFType::BSDF;
+
+    R0 = pow((1.0 - ni) / (1.0 + ni), 2);
+    std::cout <<"R0 = " << R0 << std::endl;
 }
 
 
@@ -180,27 +183,42 @@ tVector cBSDF::evaluate(const tVector & wi, const tVector & wo, const tVector & 
 tVector cBSDF::Sample_f(const tVector & ref_normal, const tVector & wo, tVector & wi_oppo)
 {
     double pdf = 1.0 / ( 4 * M_PI);
-    // wi_oppo = cMathUtil::SampleSphereUniform(pdf);
-    wi_oppo = cGeoUtil::Refract(ref_normal, -wo, 1.0 / 1.5);
-
-    if(wi_oppo.hasNaN() == true)
-    {
-        // nan的时候，一定是光密到光疏
-        wi_oppo = cGeoUtil::Reflect(ref_normal, -wo);
-    }
-    for(int i=0; i<3; i++) wi_oppo[i] += (drand48() - 0.5) * 0.1;
-    wi_oppo.normalize();
-
+    double R = R0 + (1 - R0) * pow(1 - std::fabs(ref_normal.dot(-wo)), 5);
+    double seed = drand48();
     tVector bsdf_value = tVector::Zero();
-    bsdf_value = evaluate(-wi_oppo, wo, ref_normal);
-    assert(bsdf_value.minCoeff() > -1e-6);
-
-    tVector indirect_coef = bsdf_value / (pdf) * std::fabs(wi_oppo.dot(ref_normal));
-    if(indirect_coef.minCoeff() < -1e-6)
+    if(seed < R)
     {
-        std::cout << indirect_coef << std::endl;
-        exit(1);
+        // 反射
+        wi_oppo = cGeoUtil::Reflect(ref_normal, -wo);
+
     }
+    else
+    {
+        // 折射
+        wi_oppo = cGeoUtil::Refract(ref_normal, -wo, 1.0 / 1.5);
+        if(wi_oppo.hasNaN() == true)
+        {
+            wi_oppo = cGeoUtil::Reflect(ref_normal, -wo);
+        }
+
+    }
+    double cos_theta = 1.0;
+    bsdf_value = tVector::Ones() * pdf * cos_theta;
+    // tVector indirect_coef = bsdf_value / (pdf) * std::fabs(wi_oppo.dot(ref_normal));
+    tVector indirect_coef = bsdf_value / (pdf);
+    // for(int i=0; i<3; i++) wi_oppo[i] += (drand48() - 0.5) * 0.1;
+    // wi_oppo.normalize();
+
+    
+    // bsdf_value = evaluate(-wi_oppo, wo, ref_normal);
+    // assert(bsdf_value.minCoeff() > -1e-6);
+
+    // tVector indirect_coef = bsdf_value / (pdf) * std::fabs(wi_oppo.dot(ref_normal));
+    // if(indirect_coef.minCoeff() < -1e-6)
+    // {
+    //     std::cout << indirect_coef << std::endl;
+    //     exit(1);
+    // }
     assert(indirect_coef.hasNaN() == false);
     return indirect_coef;
 }
