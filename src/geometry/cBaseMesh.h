@@ -203,6 +203,7 @@ public:
 	virtual int GetFaceNum();
 	tVector GetCenter();
 	eMeshType GetType();
+	std::string GetMeshPath(){return mMeshPath;}
 	
 	// print method
 	virtual void PrintInfo();

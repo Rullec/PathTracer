@@ -2,7 +2,7 @@
 #include <util/cJsonUtil.hpp>
 #include <iostream>
 #include <fstream>
-
+#define ENABLE_OPENMP
 // geo method
 
 void BuildLinesForFace(std::vector<tLine>& lines, const tFace * face)
@@ -398,8 +398,12 @@ void cObjMesh::BuildEdgeList()
 		// allocate in advance
 		mEdgeList.reserve(mFaceNum);
 		tEdge edge_tmp;
+#ifdef ENABLE_OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
 		for (int i = 0; i < mFaceNum; i++)
 		{
+			printf("\rbuild edge table %.3f%%", i * 100.0/ mFaceNum);
 			tFace * cur_face = mFaceList[i];
 			for (int cnt = 0; cnt < 3; cnt++)
 			{
@@ -415,6 +419,10 @@ void cObjMesh::BuildEdgeList()
 					cur_edge->mDest = edge_tmp.mDest;
 					cur_edge->mOriId = cur_face->mVertexIdList[cnt % 3];
 					cur_edge->mDestId = cur_face->mVertexIdList[(cnt + 1) % 3];
+
+#ifdef ENABLE_OPENMP
+#pragma omp critical
+#endif
 					mEdgeList.push_back(cur_edge);
 
 					// set edge id

@@ -33,7 +33,7 @@ std::shared_ptr<cBaseMesh> cMeshLoader::Load(const std::string & name, eMeshType
 	return mesh_;
 }
 
-std::shared_ptr<cObjMesh> cMeshLoader::LoadObj(const std::string & name, double scale, const tVector & disp)
+std::shared_ptr<cObjMesh> cMeshLoader::LoadObj(const std::string & name, double scale, const tVector & disp, bool build_edge)
 {
 	auto obj_ = (std::shared_ptr<cObjMesh>)(new cObjMesh(name));
 
@@ -199,7 +199,7 @@ std::shared_ptr<cObjMesh> cMeshLoader::LoadObj(const std::string & name, double 
 		}
 	}
 
-	obj_->BuildEdgeList();
+	if(build_edge) obj_->BuildEdgeList();
 	std::cout << "[log] load obj file " << name << " succ." << std::endl;
 	obj_->PrintInfo();
 	return obj_;

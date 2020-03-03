@@ -10,6 +10,6 @@ public:
 	static std::shared_ptr<cBaseMesh> Load(const std::string & name, eMeshType type, double scale = 1.0, const tVector & displacement = tVector::Zero());
 
 private:
-	static std::shared_ptr<cObjMesh> LoadObj(const std::string & name, double scale, const tVector & disp);
+	static std::shared_ptr<cObjMesh> LoadObj(const std::string & name, double scale, const tVector & disp, bool build_edge = false);
 };
 

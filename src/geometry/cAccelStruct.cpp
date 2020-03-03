@@ -362,27 +362,43 @@ cOctree::cOctree(int capacity):cAccelStruct(eAccelType::OCTREE)
     mCapacity = capacity;
     mNumNodes = 0;
 }
-
+#include <util/cFileUtil.h>
 void cOctree::Init(std::shared_ptr<cBaseMesh> mesh)
 {
     assert(mesh != nullptr);
     mMesh = mesh;
 
-    // 1. get boundary
-    tVector upper, lower;
-    mMesh->GetBound(upper, lower);
-    for(int i=0; i<3; i++) upper[i] +=1e-5, lower[i]-=1e-5;
+    const std::string path = mesh->GetMeshPath() + ".octree";
 
-    // 2. create root
-    Eigen::Vector2d bound[3];
-    for(int i=0; i<3; i++) bound[i][0] = lower[i], bound[i][1] = upper[i];
-    root = new tOctreeNode(bound, node_num++);
-    std::vector<tFace *> faces = mMesh->GetFaceList();
-    for(auto & face: faces)
+    if(cFileUtil::ExistsFile(path) == false)
     {
-        // put cur face into this tree
-        AddFace(root, face);
+        // 1. get boundary
+        tVector upper, lower;
+        mMesh->GetBound(upper, lower);
+        for(int i=0; i<3; i++) upper[i] +=1e-5, lower[i]-=1e-5;
+
+        // 2. create root
+        Eigen::Vector2d bound[3];
+        for(int i=0; i<3; i++) bound[i][0] = lower[i], bound[i][1] = upper[i];
+        root = new tOctreeNode(bound, node_num++);
+        std::vector<tFace *> faces = mMesh->GetFaceList();
+        for(auto & face: faces)
+        {
+            // put cur face into this tree
+            AddFace(root, face);
+        }
+
+        // 3. 
+        WriteOctree(path);
+        
     }
+    else
+    {
+        std::cout <<"begin read octree\n";
+        ReadOctree(path);
+        std::cout <<"end read octree\n";
+    }
+    // exit(1);
     // PrintTree();
 }
 
@@ -440,6 +456,127 @@ bool cOctree::AddFace(tOctreeNode * cur_node, tFace * face)
     }
 
     return add_succ;
+}
+
+#include <queue>
+bool cOctree::WriteOctree(const std::string & path)
+{
+    std::cout <<"begin to write octree to " << path << std::endl;
+    if(cFileUtil::ExistsFile(path)) cFileUtil::ClearFile(path);
+    std::ofstream fout(path);
+    std::queue<tOctreeNode *> Q;
+    Q.push(root);
+    tOctreeNode * cur_node = nullptr;
+    while(Q.size() != 0)
+    {
+        cur_node = Q.front();
+        Q.pop();
+        fout << cur_node->id << " " << cur_node->IsLeaf <<" ";
+        // 然后输出 bound
+        for(int i=0; i<3; i++) fout << cur_node->mbox.bound[i].transpose() << " ";
+        if(cur_node->IsLeaf == false)
+        {
+            // 是中间
+            for(int x=0; x<2; x++)
+            for(int y=0; y<2; y++)
+            for(int z=0; z<2; z++)
+                fout << cur_node->Children[x][y][z]->id <<" ", Q.push(cur_node->Children[x][y][z]);
+        }
+        else
+        {
+            for(int i=0; i<cur_node->mbox.mFaceId.size(); i++)
+                fout << cur_node->mbox.mFaceId[i] <<" ";
+        }
+        fout << std::endl;
+    }
+    std::cout <<"end to write octree to " << path << std::endl;
+    return true;
+}
+
+// #include <fstream>
+#include <sstream>
+bool cOctree::ReadOctree(const std::string & path)
+{
+    std::ifstream fin(path);
+    std::string line;
+    int node_id;
+    bool is_leaf;
+    int tmp_value;
+    const int buffer_num = 1000000;
+    tOctreeNode * value_list[buffer_num];
+    memset(value_list, 0, sizeof(tOctreeNode *) * buffer_num);
+    Eigen::Vector2d bound[3];
+    // int i=0;
+	while (fin.good()) 
+    {
+        node_id = -1;
+        // std::cout << i++ << std::endl;
+		std::getline(fin, line);
+        std::stringstream ss(line);
+
+        // node id and leaf or not?
+        ss >> node_id >> is_leaf;
+        // std::cout << node_id << std::endl;
+        if(node_id ==-1) break;
+
+        if(node_id > buffer_num)
+        {
+            std::cout << "cOctree::ReadOctree: buffer exceed\n";
+            exit(1);
+        } 
+
+        // bound box for this box
+        ss >> bound[0][0] >> bound[0][1] >> bound[1][0] >> bound[1][1] >> bound[2][0] >> bound[2][1];
+        if(value_list[node_id] == 0)
+        {
+            value_list[node_id] = new tOctreeNode(bound, node_id);
+        }
+        else
+        {
+            for(int i=0;i<3; i++)
+                value_list[node_id]->mbox.bound[i] = bound[i];
+        }
+        value_list[node_id]->IsLeaf = is_leaf;
+
+        if(false == is_leaf)
+        {
+            // 不是叶子，读取8个儿子id，并且创建儿子
+            int times = 0;
+            for(int x=0; x<2; x++)
+            for(int y=0; y<2; y++)
+            for(int z=0; z<2; z++)
+            {
+                assert(ss.good());
+                ss >> tmp_value;
+                if(tmp_value > buffer_num)
+                {
+                    std::cout << "cOctree::ReadOctree: buffer exceed\n";
+                    exit(1);
+                }
+                if(value_list[tmp_value] == 0)
+                {
+                    // 这里的bound是乱设置的，只是为了满足需求而已。
+                    value_list[tmp_value] = new tOctreeNode(bound, tmp_value);
+                }
+                value_list[node_id]->Children[x][y][z] = value_list[tmp_value];
+            }
+        }
+        else
+        {
+            // 是叶子，读取本叶子里面所有的face id，存放
+            while(ss.good())
+            {
+                tmp_value = -1;
+                ss >> tmp_value;
+                if(-1 == tmp_value) break;
+                value_list[node_id]->mbox.mFaceId.push_back(tmp_value);
+            } 
+        }
+	}
+    root = value_list[0];
+    // exit(1);
+    // WriteOctree("test.octree");
+    return true;
 }
 
 #include <queue>

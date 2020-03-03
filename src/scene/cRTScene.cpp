@@ -47,12 +47,11 @@ void cRTScene::LoadModel(const std::string & model_name, double scale)
     // std::cout <<"[debug] model up = " << up.transpose() << std::endl;
     // std::cout <<"[debug] model low = " << low.transpose() << std::endl;
 }
-
+// #include <util/cTimeUtil.hpp>
 void cRTScene::DrawScene()
 {
     // add model to scene
     AddObjToScene(mModel);
-
     // path tracer update
     // 1. generate primary rays
     // 2. ray cast

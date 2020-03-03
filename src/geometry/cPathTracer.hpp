@@ -35,6 +35,7 @@ private:
     bool mOpenResult;
     bool mEnableIndrectLight;
     bool mEnableBarycentricNormal;
+    bool mEnablePathTracing;
     bool mDrawLight;
     struct tDrawRegion mDrawRegion;
     std::string mResultPath;

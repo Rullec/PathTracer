@@ -71,6 +71,11 @@ void cPathTracer::Process()
         exit(1);
     }
 
+    if(mEnablePathTracing == false)
+    {
+        std::cout <<"cPathTracer::Process: path tracing is disabled\n";
+        return;
+    }
     // 测试
     GenerateRay();
 
@@ -96,7 +101,15 @@ void cPathTracer::InitAccelStruct()
         std::cout <<"[error] cPathTracer::InitAccelStruct empty ptr\n";
         exit(1);
     }
+    std::cout <<"[log] cPathTracer::InitAccelStruct begin\n";
+    cTimeUtil::Begin();
+    tVector upper, lower;
+    mSceneMesh->GetBound(upper, lower);
+    std::cout <<"upper = " << upper.transpose() << std::endl;
+    std::cout <<"lower = " << lower.transpose() << std::endl;
     mAccelStruct->Init(std::static_pointer_cast<cBaseMesh>(mSceneMesh));
+    cTimeUtil::End();
+    std::cout <<"[log] cPathTracer::InitAccelStruct end\n";
 }
 
 void cPathTracer::InitBxDF()
@@ -225,7 +238,9 @@ void cPathTracer::ParseConfig(const std::string & conf)
     mDrawLight = path_tracer_json["DrawLight"].asBool();
     mEnableBarycentricNormal = path_tracer_json["EnableBarycentricNormal"].asBool();
     mAccelStruct = BuildAccelStruct(path_tracer_json["RayCastAccel"]);
-    
+    mEnablePathTracing = path_tracer_json["EnablePathTracing"].asBool();
+    // std::cout << mEnablePathTracing << std::endl;
+    // exit(1);
     {
         Json::Value DrawRegion_json = path_tracer_json["DrawRegion"];
         assert(DrawRegion_json.isNull()==false && DrawRegion_json.size() == 4);
@@ -518,6 +533,7 @@ tVector cPathTracer::RayTracePrimaryRay(const tRay & ray_, int ray_id) const
                 break;
             }
 
+            
             mat = mSceneMesh->GetMaterial(mat_id);
             // return mat->diffuse;
             
@@ -591,8 +607,8 @@ tVector cPathTracer::RayTracePrimaryRay(const tRay & ray_, int ray_id) const
                 final_color /= final_color.maxCoeff();
             }
         }
-        if(height == 400 && width == 274)
-        std::cout <<"final color " << s <<" " << final_color.transpose() << std::endl;
+        // if(height == 400 && width == 274)
+        // std::cout <<"final color " << s <<" " << final_color.transpose() << std::endl;
         color += final_color /mSamples;
     }
     // if(first_cast_bsdf && std::fabs(first_normal[1] -1) < 1e-6 && ray_id == 156836)

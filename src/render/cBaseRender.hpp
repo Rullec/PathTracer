@@ -8,7 +8,7 @@
 
 #define MAX_PIXEL_NUM (1920 * 1080)
 #define MAX_LINE_NUM (1000000)
-#define MAX_FACE_NUM (100000)
+#define MAX_FACE_NUM (220000)
 
 enum eRenderType {
 	POLY_RENDER=0,

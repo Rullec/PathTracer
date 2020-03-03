@@ -62,6 +62,8 @@ protected:
     int mCapacity;
     int mNumNodes;
     bool AddFace(tOctreeNode * cur_node, tFace *);
+    bool WriteOctree(const std::string & path);
+    bool ReadOctree(const std::string & path);
 };
 
 std::shared_ptr<cAccelStruct> BuildAccelStruct(Json::Value & accel_struct);

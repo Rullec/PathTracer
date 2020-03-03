@@ -246,7 +246,8 @@ tVector cMathUtil::SampleHemiSphereCosine(const tVector & normal, double & pdf)
 	double xi1 = drand48(), xi2 = drand48();
 	double theta = 0.5 * std::acos(1 - 2 * xi1), phi = 2 * M_PI * xi2; 
 	tVector res = tVector(std::cos(theta) * std::cos(phi), std::sin(theta), -std::cos(theta) * std::sin(phi), 0);
-
+	pdf = std::cos(theta) / M_PI;
+	
 	// rotate 
 	tVector y_axis = tVector(0, 1, 0, 0);
 	tVector axis = y_axis.cross3(normal - y_axis).normalized();
