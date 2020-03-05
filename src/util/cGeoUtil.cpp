@@ -170,7 +170,7 @@ tVector cGeoUtil::CalcBarycentricCoordinate(const tVector & p_, const tVector & 
 	assert(cMathUtil::IsPoint(c));
 	// std::cout <<"debgu begin bary centric coords assert\n";
 	tVector normal1 = cGeoUtil::CalcNormalFrom3Pts(p_, a, b), normal2 = cGeoUtil::CalcNormalFrom3Pts(p_, b, c);
-	if(false == cMathUtil::IsSame(normal1, normal2))
+	if(false == cMathUtil::IsSame(normal1, normal2, 1e-4))
 	{
 		std::cout <<"v1 = " << a.transpose() << std::endl;
 		std::cout <<"v2 = " << b.transpose() << std::endl;

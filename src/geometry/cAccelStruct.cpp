@@ -394,9 +394,9 @@ void cOctree::Init(std::shared_ptr<cBaseMesh> mesh)
     }
     else
     {
-        std::cout <<"begin read octree\n";
+        std::cout <<"[debug] cOctree::Init begin read octree\n";
         ReadOctree(path);
-        std::cout <<"end read octree\n";
+        std::cout <<"[debug] cOctree::Init end read octree\n";
     }
     // exit(1);
     // PrintTree();

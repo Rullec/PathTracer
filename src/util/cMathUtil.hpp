@@ -55,6 +55,7 @@ public:
 	static tVector QuaternionToCoef(const tQuaternion & quater);
 	static tQuaternion CoefToQuaternion(const tVector & );
 	static tQuaternion AxisAngleToQuaternion(const tVector & angvel);
+	static tQuaternion RotFrom2Vec(const tVector & origin, const tVector & target);
 	static tVector QuaternionToAxisAngle(const tQuaternion & );
 	static tVector CalcAngularVelocity(const tQuaternion & old_rot, const tQuaternion & new_rot, double timestep);
 	static tVector QuatRotVec(const tQuaternion & quater, const tVector & vec);
@@ -65,6 +66,8 @@ public:
 	static tVector SampleHemiSphereUniform(const tVector & , double & pdf);
 	static tVector SampleSphereUniform(double & pdf);
 	static tVector SampleHemiSphereCosine(const tVector & , double & pdf);
+	static tVector SampleCone(const tVector & axis, const double max_theta, double & pdf);
+
 	// geometry
 	static tVector RayCast(const tVector & ori, const tVector & dir, const tVector & p1, const tVector & p2, const tVector & p3, double eps = 1e-10);
 	static double RayCastT(const tVector & ori, const tVector & dir, const tVector & p1, const tVector & p2, const tVector & p3, double eps = 1e-10);

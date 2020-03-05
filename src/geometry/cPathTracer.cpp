@@ -71,16 +71,13 @@ void cPathTracer::Process()
         exit(1);
     }
 
-    if(mEnablePathTracing == false)
-    {
-        std::cout <<"cPathTracer::Process: path tracing is disabled\n";
-        return;
-    }
     // 测试
     GenerateRay();
 
     // std::cout <<"[debug] begin ray cast primary rays\n";
-    RayTracing();
+    if(mEnablePathTracing == true) RayTracing();
+    else std::cout <<"cPathTracer::Process: path tracing is disabled\n"; 
+
     // tVector vec = tVector::Random();
     // std::cout << vec.transpose() << std::endl;
     // std::cout << cMathUtil::SkewMat(vec);
@@ -103,10 +100,6 @@ void cPathTracer::InitAccelStruct()
     }
     std::cout <<"[log] cPathTracer::InitAccelStruct begin\n";
     cTimeUtil::Begin();
-    tVector upper, lower;
-    mSceneMesh->GetBound(upper, lower);
-    std::cout <<"upper = " << upper.transpose() << std::endl;
-    std::cout <<"lower = " << lower.transpose() << std::endl;
     mAccelStruct->Init(std::static_pointer_cast<cBaseMesh>(mSceneMesh));
     cTimeUtil::End();
     std::cout <<"[log] cPathTracer::InitAccelStruct end\n";
@@ -152,7 +145,7 @@ void cPathTracer::GenerateRay()
    tMatrix mat;
    {
        // shape the conversion mat
-        tVector test = tVector(0 ,mHeight/2, 0, 1);
+        tVector test = tVector(0 , 0, 0, 1);
         tMatrix mat1 = tMatrix::Identity();
         mat1(0, 0) = 1.0 / mWidth;
         mat1(0, 3) = 0.5 / mWidth;
@@ -169,7 +162,8 @@ void cPathTracer::GenerateRay()
         
         // pos = mat2 * pos;
         tMatrix mat3 = tMatrix::Identity();
-        mat3(0, 0) = mWidth / mHeight * std::tan(cMathUtil::Radians(mFov) / 2) * mNear;
+        // mat3(0, 0) = std::tan(cMathUtil::Radians(mFov) / 2) * mNear;
+        mat3(0, 0) = mWidth * 1.0 / mHeight * std::tan(cMathUtil::Radians(mFov) / 2) * mNear;
         mat3(1, 1) = std::tan(cMathUtil::Radians(mFov) / 2) * mNear;
         mat3(2, 2) = 0, mat3(2, 3) = -mNear;
         // std::cout <<"after 3, vec = " << (test = mat3 * test).transpose() << std::endl;
@@ -258,7 +252,6 @@ void cPathTracer::ParseConfig(const std::string & conf)
     // exit(1);
 }
 
-
 void cPathTracer::OutputImage()
 {
     cFileUtil::ClearFile(mResultPath);
@@ -289,45 +282,51 @@ void cPathTracer::GetDrawResources(std::vector<tLine> & lines, std::vector<tVert
     lines = mDrawLines;
     pts = mDrawPoints;
 
-    // tRay cur_ray = mScreenRay[mWidth * mHeight / 2 + mWidth / 4];
-    // int go = 3;
-    // for(int i=0; i<go; i++)
-    // {
-    //     tLine line;
-    //     tVertex st_pt, end_pt;
-    //     line.mOri = st_pt.mPos = cur_ray.GetOri();
 
-    //     // set up new ray
-    //     tFace * target_face;
-    //     tVector inter_pt;
-    //     RayCast(cur_ray, inter_pt, &target_face);
-    //     tVertex ** vertex_lst = target_face->mVertexPtrList;
-    //     tVector normal = ((vertex_lst[1]->mPos - vertex_lst[0]->mPos).cross3(vertex_lst[2]->mPos - vertex_lst[1]->mPos)).normalized();
-    //     {
-    //         double pdf;
-    //         tVector dir = cMathUtil::SampleHemiSphereUniform(normal, pdf);
-    //         cur_ray.Init(inter_pt, dir);
-    //         std::cout <<"[random ray] normal = " << normal.transpose() <<", dir = " << dir.transpose() << std::endl;
-    //         std::cout <<"[new ray] ori = " << cur_ray.GetOri().transpose() <<", dir = " << cur_ray.GetDir().transpose() << std::endl;
-    //     }
-    //     end_pt.mPos = inter_pt;
-    //     line.mDest = inter_pt;
-    //     pts.push_back(st_pt), pts.push_back(end_pt);
-    //     lines.push_back(line);
-    //     std::cout <<"from " << st_pt.mPos.transpose() <<" to " << end_pt.mPos.transpose() << std::endl;
-    // }
+    if(mRayDisplay)
+    {
+        const int gap = 100;
+        tVertex v;
+        for(int id = 0; id < mWidth * mHeight ; id+=gap)
+        {
+            tRay cur_ray = mScreenRay[id];
+            tLine line;
+            
+            // tVertex end_pt;
+            // line.mOri = st_pt.mPos = cur_ray.GetOri();
+            // set up new ray
+            // tFace * target_face;
+            // tVector inter_pt;
+            // RayCast(cur_ray, inter_pt, &target_face);
+            // tVertex ** vertex_lst = target_face->mVertexPtrList;
+            // tVector normal = ((vertex_lst[1]->mPos - vertex_lst[0]->mPos).cross3(vertex_lst[2]->mPos - vertex_lst[1]->mPos)).normalized();
+            // {
+            //     double pdf;
+            //     tVector dir = cMathUtil::SampleHemiSphereUniform(normal, pdf);
+            //     cur_ray.Init(inter_pt, dir);
+            //     std::cout <<"[random ray] normal = " << normal.transpose() <<", dir = " << dir.transpose() << std::endl;
+            //     std::cout <<"[new ray] ori = " << cur_ray.GetOri().transpose() <<", dir = " << cur_ray.GetDir().transpose() << std::endl;
+            // }
+            // end_pt.mPos = ;
+            mAccelStruct->RayCast(cur_ray, v.mPos);
+            line.mOri = cur_ray.GetOri();
+            line.mDest = line.mOri + cur_ray.GetDir() * 100;
+            // pts.push_back(st_pt), pts.push_back(end_pt);
+            lines.push_back(line);
+            pts.push_back(v);
+            // std::cout <<"from " << st_pt.mPos.transpose() <<" to " << end_pt.mPos.transpose() << std::endl;
+        }
+    }
+    // std::cout <<"lines num = " << lines.size() << std::endl;
 
     // draw light
     if(mDrawLight)
     {
         for(auto & light : mLight)
         {
-            if(eLightType::SQUARE == light->GetType())
-            {
-                std::vector<tFace> s_fs;
-                light->GetDrawShape(s_fs);
-                for(auto & f : s_fs) faces.push_back(f);
-            }
+            std::vector<tFace> s_fs;
+            light->GetDrawShape(s_fs);
+            for(auto & f : s_fs) faces.push_back(f);
         }
     }
 
@@ -407,10 +406,25 @@ void cPathTracer::GetDrawResources(std::vector<tLine> & lines, std::vector<tVert
         if(i == reflection_pts.size() -1) continue;
         line.mOri = reflection_pts[i];
         line.mDest = reflection_pts[i+1];
+        line.mColor = tVector(1, 1, 1, 0);
         lines.push_back(line);
     }
 
-
+    // test samplecone
+    // const tVector medial = tVector(1, 1, 1, 0).normalized();
+    // const double max_theta = 30.0 / 180 * M_PI;
+    // double pdf;
+    // tVertex v;
+    // const int times = 1e5;
+    // tVector sum = tVector::Zero();
+    // for(int i=0; i<times; i++)
+    // {
+    //     v.mPos = cMathUtil::SampleCone(medial, max_theta, pdf);
+    //     pts.push_back(v);
+    //     sum += v.mPos / times;
+    // }
+    // std::cout <<" avg = " << sum.normalized().transpose() <<":" << medial.transpose() << std::endl;
+    
     // barycentric coordinates test code
     // for(int i=0; i<10000; i++)
     // {
@@ -444,7 +458,7 @@ void cPathTracer::GetDrawResources(std::vector<tLine> & lines, std::vector<tVert
     //     faces.push_back(f);
     // }
     
-
+    // std::cout <<"final lines num = " << lines.size() << std::endl;
     // exit(1);
 }
 
@@ -540,6 +554,8 @@ tVector cPathTracer::RayTracePrimaryRay(const tRay & ray_, int ray_id) const
             // 3. if material is ambient, set up final color, break, do not reflect any more
             if(mat->ambient.norm() > 1e-6)
             {
+                // double r = (ref_pt - ray.GetOri()).norm();
+                // final_color = mat->ambient / pow(r,2);
                 final_color = mat->ambient;
                 break;
             }
@@ -566,9 +582,9 @@ tVector cPathTracer::RayTracePrimaryRay(const tRay & ray_, int ray_id) const
             //     if(reflection_pts.size() < mMaxDepth)
             //         reflection_pts.push_back(ref_pt);
             // }
-            if(height == 400 && width == 274)
-                if(reflection_pts.size() < mMaxDepth)
-                    reflection_pts.push_back(ref_pt);
+            // if(height == 400 && width == 274)
+            //     if(reflection_pts.size() < mMaxDepth)
+            //         reflection_pts.push_back(ref_pt);
             // 4. calculate direct light
             direct_color = bxdf->Sample_Li(mLight, mAccelStruct.get(), ref_normal, ref_pt, ray);
             direct_light_lst.push_back(direct_color);
@@ -618,10 +634,6 @@ tVector cPathTracer::RayTracePrimaryRay(const tRay & ray_, int ray_id) const
     //     // color = tVector(0.2, 0.4, 0.5, 1);
     //     // color *=2;
     // }
-    if(height == 400 && width == 274)
-    {
-        std::cout <<"color = " << color.transpose() << std::endl;
-    }
     if(color.maxCoeff() > 1) color /= color.maxCoeff();
     return color;
 }

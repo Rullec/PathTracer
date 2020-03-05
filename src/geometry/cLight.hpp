@@ -2,7 +2,7 @@
 
 enum eLightType{
     SQUARE,
-    BALL
+    SPHERE
 };
 
 class cBaseMesh;
@@ -31,6 +31,17 @@ private:
     tVector mLightPos[4];
     tVector mNormal;
     double mArea;
+};
+
+class cSphereLight: public cLight{
+public:
+    cSphereLight(const tVector & center, double radius, const tVector & radiance);
+    virtual void Sample_Li(const tVector & ref, tRay & wi_ray, double * pdf) override final;
+    virtual void GetDrawShape(std::vector<tFace> & face) const override final;
+private:
+    const tVector mCenter;
+    const double mRadius;
+    // std::vector<tFace> mDrawFaces;
 };
 
 std::vector<std::shared_ptr<cLight>> BuildLight(const std::string & conf);
