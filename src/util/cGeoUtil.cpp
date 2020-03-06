@@ -172,11 +172,12 @@ tVector cGeoUtil::CalcBarycentricCoordinate(const tVector & p_, const tVector & 
 	tVector normal1 = cGeoUtil::CalcNormalFrom3Pts(p_, a, b), normal2 = cGeoUtil::CalcNormalFrom3Pts(p_, b, c);
 	if(false == cMathUtil::IsSame(normal1, normal2, 1e-4))
 	{
+		std::cout <<"-----------calculate barycentric coordinate error-----------\n";
 		std::cout <<"v1 = " << a.transpose() << std::endl;
 		std::cout <<"v2 = " << b.transpose() << std::endl;
 		std::cout <<"v3 = " << c.transpose() << std::endl;
 		std::cout <<"normal1 = " << normal1.transpose() <<", normal2 = " << normal2.transpose() << std::endl;
-		exit(1);
+		// exit(1);
 	}
 
 	// // https://www.gamedev.net/forums/topic/621445-barycentric-coordinates-c-code-check/

@@ -130,7 +130,7 @@ const int samples = 100;
 // create triangles for unit sphere
 cSphereLight::cSphereLight(const tVector & center, double radius, const tVector & radiance):mCenter(center), mRadius(radius), cLight(eLightType::SPHERE, radiance)
 {
-    std::cout <<"[debug] sphere light init = " << mCenter.transpose() <<" " << radius << std::endl;
+    // std::cout <<"[debug] sphere light init = " << mCenter.transpose() <<" " << radius << std::endl;
     assert(cMathUtil::IsPoint(center));
 
     vertices.clear();
@@ -267,7 +267,7 @@ std::vector<std::shared_ptr<cLight>> BuildLight(const std::string & conf)
     }
 
     std::shared_ptr<cLight> light;
-    double scale = root["Scene"]["ObjScale"].asDouble();
+    double scale = root["Scene"]["WorldScale"].asDouble();
     scene = root["Light"];
     int light_num = scene["LightNum"].asInt();
     light_type_lst = scene["LightType"];

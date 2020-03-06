@@ -1,5 +1,5 @@
 #include <util/cMathUtil.hpp>
-#include <geometry/cBaseMesh.h>
+#include <geometry/cObjMesh.h>
 
 class cBaseCamera;
 class cLight;

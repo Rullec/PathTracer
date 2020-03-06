@@ -71,12 +71,13 @@ struct tFace {
 	int mEdgeIdList[NUM_EDGE_PER_FACE];
 	tVertex * mVertexPtrList[NUM_VERTEX_PER_FACE];
 	tEdge * mEdgePtrList[NUM_EDGE_PER_FACE];
-
+	int mShapeId;	// used for shape analysis
 	static const int size = NUM_VERTEX_PER_FACE * tVertex::size;
 
 	tFace() {
 		mFaceId = -1;
 		mMaterialId = -1;
+		mShapeId = -1;
 		memset(mVertexIdList, 0, sizeof(mVertexIdList));
 		memset(mEdgeIdList, 0, sizeof(mEdgeIdList));
 		memset(mVertexPtrList, 0, sizeof(mVertexPtrList));
@@ -173,7 +174,12 @@ struct tAABB{
     std::vector<int> mFaceId;
     tAABB()
     {
-        bound[0] = bound[1] = bound[2] = Eigen::Vector2d::Zero();
+        // bound[0] = bound[1] = bound[2] = Eigen::Vector2d::Zero();
+		for(int i=0; i<3; i++)
+		{
+			bound[i][0] = std::numeric_limits<double>::max();
+			bound[i][1] = -std::numeric_limits<double>::max();
+		}
         mFaceId.clear();
     };
     bool intersect(const tVector & pos)const;
@@ -219,37 +225,4 @@ protected:
 
 	tVector mCenterPos;					// the shape center of this 3D mesh
 	void Clear();
-};
-
-class cObjMesh :public cBaseMesh {
-public:
-	EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-
-	cObjMesh(const std::string & filename);
-	~cObjMesh();
-	std::vector<tEdge *> GetEdgeList();
-	void BuildEdgeList();
-	void GetTexture(unsigned char * &, int &w, int &h);
-	void SetTexture(unsigned char *, int w, int h);
-	
-	void AddMaterial(tMaterial *);
-	tMaterial * GetMaterial(int id);
-	int GetMaterialNum();
-	virtual void PrintInfo() override ;
-protected:
-
-	int mEdgeNum;
-	bool mEdgeListExist;
-	std::vector<tEdge *> mEdgeList;
-
-	// texture 
-	int mTexWidth, mTexHeight;
-	unsigned char * mTexturePtr;
-
-	// material storage
-	std::vector<tMaterial *> mMaterialList;
-
-	// tool methods
-	void ReadEdgeList(const std::string & path);
-	void WriteEdgeList(const std::string & path);
 };

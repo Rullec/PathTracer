@@ -6,25 +6,37 @@
 #include <util/cFileUtil.h>
 using namespace std;
 
+tMeshParams::tMeshParams()
+{
+	name = "";
+	type = eMeshType::OBJ;
+	scale = 1.0;
+	displacement = tVector::Zero();
+	build_edge_info = false;
+	shape_analysis = false;
+}
+
 cMeshLoader::cMeshLoader()
 {
 
 }
 
-std::shared_ptr<cBaseMesh> cMeshLoader::Load(const std::string & name, eMeshType type, double scale, const tVector &displacement)
+std::shared_ptr<cBaseMesh> cMeshLoader::Load(const tMeshParams & params_)
 {
 	std::shared_ptr<cBaseMesh> mesh_ = nullptr;
-	switch (type)
+	switch (params_.type)
 	{
 	case OBJ:
 	{
-		std::shared_ptr<cObjMesh> x = LoadObj(name, scale, displacement);
+		// std::cout <<"-------------- load obj " << params_.name << "--------------\n";
+		// std::cout <<"scale = " << params_.scale <<", displacement = " << params_.displacement.transpose() <<", build edge and shape = " << params_.build_edge_info <<" " << params_.shape_analysis << std::endl;
+		std::shared_ptr<cObjMesh> x = LoadObj(params_.name, params_.scale, params_.displacement, params_.build_edge_info, params_.shape_analysis);
 		mesh_ = std::dynamic_pointer_cast<cBaseMesh> (x);
 	}
 		break;
 	default:
 	{
-		std::cout << "[error] cMeshLoader::Load: Unsupported mesh type " << type << std::endl;
+		std::cout << "[error] cMeshLoader::Load: Unsupported mesh type " << params_.type << std::endl;
 		exit(1);
 	}
 		break;
@@ -33,7 +45,7 @@ std::shared_ptr<cBaseMesh> cMeshLoader::Load(const std::string & name, eMeshType
 	return mesh_;
 }
 
-std::shared_ptr<cObjMesh> cMeshLoader::LoadObj(const std::string & name, double scale, const tVector & disp, bool build_edge)
+std::shared_ptr<cObjMesh> cMeshLoader::LoadObj(const std::string & name, double scale, const tVector & disp, bool build_edge, bool shape_analysis)
 {
 	auto obj_ = (std::shared_ptr<cObjMesh>)(new cObjMesh(name));
 
@@ -101,6 +113,7 @@ std::shared_ptr<cObjMesh> cMeshLoader::LoadObj(const std::string & name, double 
 			tFace *cur_face = new tFace();
 			cur_face->mFaceId = face_id_before + face_id;
 			cur_face->mMaterialId = shapes[shape_id].mesh.material_ids[face_id]; // make the material id count from 0
+			cur_face->mShapeId = shape_id;
 			obj_->AddFace(cur_face);
 
 			// Loop over vertices in the face.
@@ -113,7 +126,6 @@ std::shared_ptr<cObjMesh> cMeshLoader::LoadObj(const std::string & name, double 
 				tinyobj::real_t vx = (attrib.vertices[3 * idx.vertex_index + 0]+ disp[0]) * scale  ;
 				tinyobj::real_t vy = (attrib.vertices[3 * idx.vertex_index + 1] + disp[1])* scale;
 				tinyobj::real_t vz = (attrib.vertices[3 * idx.vertex_index + 2] + disp[2])* scale;
-
 
 				// load vertices normal 
 				tinyobj::real_t nx = std::nan(""), ny = std::nan(""), nz = std::nan("");
@@ -168,6 +180,7 @@ std::shared_ptr<cObjMesh> cMeshLoader::LoadObj(const std::string & name, double 
 		}
 
 		face_id_before += shapes[shape_id].mesh.num_face_vertices.size();
+
 	}
 	
 	// detect and load texture file by stb_image
@@ -200,6 +213,7 @@ std::shared_ptr<cObjMesh> cMeshLoader::LoadObj(const std::string & name, double 
 	}
 
 	if(build_edge) obj_->BuildEdgeList();
+	// if(shape_analysis) obj_->ShapeAnalysis();
 	std::cout << "[log] load obj file " << name << " succ." << std::endl;
 	obj_->PrintInfo();
 	return obj_;

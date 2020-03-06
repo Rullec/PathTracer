@@ -2,15 +2,10 @@
 
 class cBaseMesh;
 class cPathTracer;
-
+struct tMeshParams;
 class cRTScene: public cDrawScene{
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-    struct tParams{
-        std::string mModelName;
-        double mModelScale;
-        tParams();
-    };
 
     cRTScene(const std::string & config);
 
@@ -22,7 +17,7 @@ public:
 	virtual void ScrollEvent(double offset) override final;
 
 protected:
-    struct tParams mParams;
+    struct tMeshParams * mParams;
     std::shared_ptr<cBaseMesh> mModel;
     std::shared_ptr<cPathTracer> mTracer;
 

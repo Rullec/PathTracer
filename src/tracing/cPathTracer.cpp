@@ -1,14 +1,14 @@
 #define ENABLE_OPENMP
 #include "cPathTracer.hpp"
-#include <geometry/cBaseMesh.h>
+#include <geometry/cObjMesh.h>
 #include <render/camera/cBaseCamera.hpp>
 #include <util/cTimeUtil.hpp>
 #include <util/cFileUtil.h>
 #include <util/cJsonUtil.hpp>
 #include <util/cGeoUtil.hpp>
-#include <geometry/cLight.hpp>
-#include <geometry/cBxDF.hpp>
 #include <geometry/cAccelStruct.hpp>
+#include <tracing/cLight.hpp>
+#include <tracing/cBxDF.hpp>
 #include <omp.h>
 // #define DEBUG_MODE
 
@@ -282,7 +282,6 @@ void cPathTracer::GetDrawResources(std::vector<tLine> & lines, std::vector<tVert
     lines = mDrawLines;
     pts = mDrawPoints;
 
-
     if(mRayDisplay)
     {
         const int gap = 100;
@@ -329,6 +328,50 @@ void cPathTracer::GetDrawResources(std::vector<tLine> & lines, std::vector<tVert
             for(auto & f : s_fs) faces.push_back(f);
         }
     }
+
+    // shape analysis
+    // std::vector<std::vector<int>> shape_faces;
+    // std::vector<std::pair<tVector, tAABB *>> boxes = mSceneMesh->ShapeAnalysis(shape_faces);
+    // tVertex v;
+    // std::vector<tLine> bb_lines;
+    // tVector colors[] = {
+    //     // tVector(0, 0, 0, 0),   // 0
+    //     tVector(1, 0, 0, 0),   // 1
+    //     tVector(0, 1, 0, 0),
+    //     tVector(0, 0, 1, 0),
+    //     tVector(1, 1, 1, 0),
+    // };
+    // int color_num = sizeof(colors) / sizeof(tVector);
+    // // std::cout <<  << std::endl;
+    // // exit(1);
+    // const int offset = 6;
+    // for(int i=0; i<boxes.size(); i++)
+    // {
+    //     v.mPos = boxes[i].first;
+    //     pts.push_back(v);
+    //     tAABB * box = boxes[i].second;
+    //     BuildLinesForBox(bb_lines, *(box));
+
+    //     for(auto & l : bb_lines)
+    //     {
+    //         if( i >= offset && i-offset < color_num)
+    //         {
+    //             l.mColor = colors[i-offset];
+    //         }
+    //         lines.push_back(l);
+    //     }
+    //     if( i >= offset && i-offset < color_num)
+    //     {
+    //         std::cout <<"---------------\n";
+    //         std::cout <<"color " << colors[i-offset].transpose() <<", center = " << v.mPos.transpose() << std::endl;
+    //         std::cout <<"x bound = " << box->bound[0].transpose() << std::endl;
+    //         std::cout <<"y bound = " << box->bound[1].transpose() << std::endl;
+    //         std::cout <<"z bound = " << box->bound[2].transpose() << std::endl;
+    //         std::cout <<"radiance = " << mSceneMesh->GetMaterial(mSceneMesh->GetFaceList()[shape_faces[i][0]]->mMaterialId)->ambient.transpose() << std::endl;
+    //     }
+
+    // }
+
 
     // test normal
     // double pdf;

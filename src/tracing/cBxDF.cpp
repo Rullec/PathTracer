@@ -91,11 +91,11 @@ cBSDF::cBSDF(const tVector& ka, const tVector&  kd, const double& ni, \
 const double& ns, const tVector& ks):
     mKa(ka), mKd(kd), mNi(ni), mNs(ns), mKs(ks)
 {
-    std::cout <<"[debug] cBSDF::cBSDF get ka = " << mKa.transpose() <<"\n"
-    << "kd = " << mKd.transpose() <<"\n"
-    << "ni = " << mNi <<"\n"
-    << "ns = " << mNs <<"\n"
-    << "ks = " << mKs.transpose() <<"\n";
+    // std::cout <<"[debug] cBSDF::cBSDF get ka = " << mKa.transpose() <<"\n"
+    // << "kd = " << mKd.transpose() <<"\n"
+    // << "ni = " << mNi <<"\n"
+    // << "ns = " << mNs <<"\n"
+    // << "ks = " << mKs.transpose() <<"\n";
     mType = eBxDFType::BSDF;
 
     R0 = pow((1.0 - ni) / (1.0 + ni), 2);

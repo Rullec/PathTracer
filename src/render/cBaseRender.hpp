@@ -19,6 +19,7 @@ const std::string gRenderName[] = {
 	"Poly Render"
 };
 
+struct tMeshParams;
 class cBaseRender {
 public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
@@ -56,9 +57,10 @@ protected:
 	std::string mVertexShaderPath_face, mGeometryShaderPath_face, mFragmentShaderPath_face;
 	std::string mVertexShaderPath_normal, mFragmentShaderPath_normal;
 	bool mEnableGround;
-	std::string mGroundPath;
-	double mGroundScale;
-	tVector mGroundMove;
+	struct tMeshParams * mGroundParams;
+	// std::string mGroundPath;
+	// double mGroundScale;
+	// tVector mGroundMove;
 	unsigned int mShaderProgram_normal, mShaderProgram_face;
 	enum eRenderStatus mRenderStatus;
 	std::shared_ptr<cBaseCamera> mCamera;

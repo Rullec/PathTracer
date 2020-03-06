@@ -31,12 +31,16 @@ cBaseRender::cBaseRender(const std::string & a_): mConfPath(a_)
 	mVertexShaderPath_normal = render["vertex_shader_normal"].asString();
 	mFragmentShaderPath_normal = render["fragment_shader_normal"].asString();
 
-	mGroundPath = render["ground_path"].asString();
-	mGroundScale = render["ground_scale"].asDouble();
-	mGroundMove = mLightPos = tVector::Identity();
+	// mGroundPath = render["ground_path"].asString();
+	// mGroundScale = render["ground_scale"].asDouble();
+	// mGroundMove = mLightPos = tVector::Identity();
+	mGroundParams = new tMeshParams();
+	mGroundParams->name = render["ground_path"].asString();
+	mGroundParams->scale = render["ground_scale"].asDouble();
+	mGroundParams->displacement = mLightPos = tVector::Identity();
 	for(int i = 0; i < 3; i++)
 	{
-		mGroundMove[i] = render["ground_displacement"][i].asDouble();
+		mGroundParams->displacement[i] = render["ground_displacement"][i].asDouble();
 		mLightPos[i] = render["light_pos"][i].asDouble();
 	}
 	mEnableGround = render["enable_ground"].asBool();
@@ -604,8 +608,12 @@ void cBaseRender::InitGround()
 
 	// InitGround
 	// load data
-	std::shared_ptr<cBaseMesh> mesh = cMeshLoader::Load(mGroundPath, eMeshType::OBJ, mGroundScale, mGroundMove);
-
+	mGroundParams->type = eMeshType::OBJ;
+	mGroundParams->shape_analysis = false;
+	mGroundParams->build_edge_info = false;
+	std::shared_ptr<cBaseMesh> mesh = cMeshLoader::Load(*mGroundParams);
+	// std::cout <<"load ground faces = " << ( mesh->GetFaceNum() )<< std::endl;
+	// exit(1);
 	AddMesh(mesh);
 }
 
