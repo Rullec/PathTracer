@@ -8,6 +8,7 @@ enum eLightType{
 class cBaseMesh;
 struct tRay;
 struct tFace;
+struct tVertex;
 class cLight{
 public:
     cLight(eLightType type, const tVector & rad);
@@ -41,6 +42,7 @@ public:
 private:
     const tVector mCenter;
     const double mRadius;
+    std::vector<std::vector<tVertex>> vertices;
     // std::vector<tFace> mDrawFaces;
 };
 

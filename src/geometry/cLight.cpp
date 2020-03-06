@@ -128,12 +128,15 @@ private:
 const int layers = 100;
 const int samples = 100;
 // create triangles for unit sphere
-tVertex vertices[layers+1][samples+1];
 cSphereLight::cSphereLight(const tVector & center, double radius, const tVector & radiance):mCenter(center), mRadius(radius), cLight(eLightType::SPHERE, radiance)
 {
     std::cout <<"[debug] sphere light init = " << mCenter.transpose() <<" " << radius << std::endl;
     assert(cMathUtil::IsPoint(center));
 
+    vertices.clear();
+    vertices.resize(layers+1);
+    for(auto & x : vertices) x.resize(samples+1);
+    // tVertex vertices[layers+1][samples+1];
     // init face
     {
         for(int l = 0; l <= layers; l++)
@@ -186,24 +189,39 @@ void cSphereLight::Sample_Li(const tVector & ref, tRay & wi_ray, double * pdf)
 
     // 1. calculate max_theta and sample a direction
     double dc = (ref - mCenter).norm(); // from ref pt to center pt
-    assert(dc > mRadius);
-    double max_theta = std::asin(mRadius / dc);
-    tVector from_ref_to_light = (mCenter - ref).normalized();
-    tVector sample_dir = cMathUtil::SampleCone(from_ref_to_light, max_theta, *pdf);
-    assert(cMathUtil::IsVector(sample_dir));
-    assert(cMathUtil::IsNormalized(sample_dir));
+    if(dc > mRadius)
+    {
+        // outside of light sphere
+        double max_theta = std::asin(mRadius / dc);
+        tVector from_ref_to_light = (mCenter - ref).normalized();
+        tVector sample_dir = cMathUtil::SampleCone(from_ref_to_light, max_theta, *pdf);
+        assert(cMathUtil::IsVector(sample_dir));
+        assert(cMathUtil::IsNormalized(sample_dir));
 
-    // 2. calculate the intersection point between the light sphere and ref pt
-    // ds = dc * cos(theta) - sqrt(r^2 - d_c^2 * sin^2(theta))
-    double theta = std::acos(sample_dir.dot(from_ref_to_light));
-    double ds = dc * std::cos(theta) - std::sqrt(mRadius * mRadius - dc * dc * pow(std::sin(theta), 2));
-    tVector intersection_pt = ref + ds * sample_dir;
-    // judge intersection pt is on the surface of this sphere
-    assert(cMathUtil::IsPoint(intersection_pt));
-    assert(std::fabs((intersection_pt - mCenter).norm() - mRadius) < 1e-6);
+        // 2. calculate the intersection point between the light sphere and ref pt
+        // ds = dc * cos(theta) - sqrt(r^2 - d_c^2 * sin^2(theta))
+        double theta = std::acos(sample_dir.dot(from_ref_to_light));
+        double ds = dc * std::cos(theta) - std::sqrt(mRadius * mRadius - dc * dc * pow(std::sin(theta), 2));
+        tVector intersection_pt = ref + ds * sample_dir;
+        // judge intersection pt is on the surface of this sphere
+        assert(cMathUtil::IsPoint(intersection_pt));
+        assert(std::fabs((intersection_pt - mCenter).norm() - mRadius) < 1e-6);
 
-    // 3. set up incident ray wi:
-    wi_ray.Init(ref, -from_ref_to_light);
+        // 3. set up incident ray wi:
+        wi_ray.Init(ref, -from_ref_to_light);
+    }
+    else
+    {
+        // ref pt is inside of this light sphere
+        // 1. sample from this sphere - pdf = 1.0 / (4 * pi)
+        tVector light_pt = cMathUtil::SampleSphereUniform(*pdf) * mRadius + mCenter;
+        assert(cMathUtil::IsPoint(light_pt));
+
+        // 2. set wi_ray
+        tVector wi_dir = (ref - light_pt).normalized();
+        wi_ray.Init(ref, wi_dir);
+    }
+    
 
     // // double xi1 = drand48(), xi2 = drand48();
     // tVector sample_pt = cMathUtil::SampleSphereUniform(*pdf) * mRadius + mCenter;

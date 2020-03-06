@@ -21,61 +21,26 @@ tVector cBxDF::Sample_Li(const std::vector<std::shared_ptr<cLight>> & lights, cA
     tVector direct_color = tVector::Zero();
     for(auto & cur_light : lights)
     {
-        if(eLightType::SQUARE == cur_light->GetType())
-        {
-            // 从光源中采样一个点，
-            tVector Li = cur_light->GetRadiance();
-            // wi_ray: from light source to pt
-            // pdf = r^2 / (A * cos_theta_0), if illegal, pdf = 0
-            cur_light->Sample_Li(ref_pt, wi_ray, &pdf);
+        tVector Li = cur_light->GetRadiance();
+        // wi_ray: from light source to pt
+        // pdf = r^2 / (A * cos_theta_0), if illegal, pdf = 0
+        cur_light->Sample_Li(ref_pt, wi_ray, &pdf);
 
-            // intersect with myself?
-            if(pdf < 1e-10) continue;
+        // intersect with myself?
+        if(pdf < 1e-10) continue;
+        if(false == mAccelStruct->VisTest(wi_ray.GetOri(), ref_pt))
+            continue;
 
-            // visible test failed -> no light avaliable, continue
-            // if(false == VisTestForLight(wi_ray.GetOri(), ref_pt, false, mSceneMesh, mAABBLst)) 
-            if(false == mAccelStruct->VisTest(wi_ray.GetOri(), ref_pt))
-                continue;
+        // L_i * cos(theta_i) * cos(theta_0) * A / r^2
+        // = L_i * cos(theta_i) / p(w)
+        assert(cMathUtil::IsVector(wi_ray.GetDir()));
+        assert(cMathUtil::IsNormalized(wi_ray.GetDir()));
+        double cos_theta_normal_wi = ref_normal.dot(-wi_ray.GetDir());
+        if(cos_theta_normal_wi < 0) continue;
 
-            // L_i * cos(theta_i) * cos(theta_0) * A / r^2
-            // = L_i * cos(theta_i) / p(w)
-            assert(cMathUtil::IsVector(wi_ray.GetDir()));
-            assert(cMathUtil::IsNormalized(wi_ray.GetDir()));
-            double cos_theta_normal_wi = ref_normal.dot(-wi_ray.GetDir());
-            if(cos_theta_normal_wi < 0) continue;
-
-            tVector brdf_value = this->evaluate(wi_ray.GetDir(), -wo_ray.GetDir(), ref_normal);/* * M_PI * 2;*/
-            direct_color += cMathUtil::WiseProduct(Li * cos_theta_normal_wi / pdf, brdf_value);
-            assert(direct_color.minCoeff() > -1e-6);
-        }
-        else if (eLightType::SPHERE == cur_light->GetType())
-        {
-            tVector Li = cur_light->GetRadiance();
-            // wi_ray: from light source to pt
-            // pdf = r^2 / (A * cos_theta_0), if illegal, pdf = 0
-            cur_light->Sample_Li(ref_pt, wi_ray, &pdf);
-
-            // intersect with myself?
-            if(pdf < 1e-10) continue;
-            if(false == mAccelStruct->VisTest(wi_ray.GetOri(), ref_pt))
-                continue;
-
-            // L_i * cos(theta_i) * cos(theta_0) * A / r^2
-            // = L_i * cos(theta_i) / p(w)
-            assert(cMathUtil::IsVector(wi_ray.GetDir()));
-            assert(cMathUtil::IsNormalized(wi_ray.GetDir()));
-            double cos_theta_normal_wi = ref_normal.dot(-wi_ray.GetDir());
-            if(cos_theta_normal_wi < 0) continue;
-
-            tVector brdf_value = this->evaluate(wi_ray.GetDir(), -wo_ray.GetDir(), ref_normal);/* * M_PI * 2;*/
-            direct_color += cMathUtil::WiseProduct(Li * cos_theta_normal_wi / pdf, brdf_value);
-            assert(direct_color.minCoeff() > -1e-6);
-        }
-        else
-        {
-            std::cout <<"[debug] cBxDF::Sample_Li unsupported light type = " << cur_light->GetType() << std::endl;
-            exit(1);
-        }
+        tVector brdf_value = this->evaluate(wi_ray.GetDir(), -wo_ray.GetDir(), ref_normal);/* * M_PI * 2;*/
+        direct_color += cMathUtil::WiseProduct(Li * cos_theta_normal_wi / pdf, brdf_value);
+        assert(direct_color.minCoeff() > -1e-6);
         
     }
     return direct_color;
