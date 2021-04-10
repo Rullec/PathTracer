@@ -1,10 +1,7 @@
 #include "cScene.hpp"
 #include <iostream>
 
-cScene::cScene()
-{
-    mSceneStatus = BeforeInit;
-}
+cScene::cScene() { mSceneStatus = BeforeInit; }
 
 cScene::~cScene()
 {

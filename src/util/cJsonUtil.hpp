@@ -1,8 +1,9 @@
 #pragma once
+#include "json/json.h"
 #include <string>
-#include <json/json.h>
 
-class cJsonUtil{
+class cJsonUtil
+{
 public:
-    static bool ParseJson(const std::string & path, Json::Value & value);
+    static bool ParseJson(const std::string &path, Json::Value &value);
 };

@@ -1,7 +1,7 @@
 include
 lib
 model/
-build
+build*/
 PathTracer
 .DS_Store
 .vscode/

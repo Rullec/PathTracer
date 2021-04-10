@@ -2,9 +2,10 @@
 #include <iostream>
 // #include <string>
 
-class cBaseShader{
+class cBaseShader
+{
 public:
-    cBaseShader(std::string, unsigned int );
+    cBaseShader(std::string, unsigned int);
     ~cBaseShader();
     void ReadSrcFromFile(std::string src_path);
     unsigned int GetShaderHandle();

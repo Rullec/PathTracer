@@ -1,5 +1,14 @@
-aux_source_directory(./camera camera_src)
-aux_source_directory(./shader shader_src)
-aux_source_directory(./ render_src)
+set(camera_src
+    ./camera/cArcballCamera.cpp
+    ./camera/cBaseCamera.cpp
+    ./camera/cFPSCamera.cpp
+)
+set(shader_src
+    ./shader/cBaseShader.cpp
+)
+set(render_src
+    cBaseRender.cpp
+    cPolyRender.cpp
+)
 
-add_library(render ${render_src} ${camera_src} ${shader_src})
+add_library(render_lib ${render_src} ${camera_src} ${shader_src})

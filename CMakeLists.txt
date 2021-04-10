@@ -15,6 +15,7 @@ message("CMAKE_CXX_FLAGS is ${CMAKE_CXX_FLAGS}")
 # message("CMAKE_CXX_FLAGS_DEBUG is ${CMAKE_CXX_FLAGS_DEBUG}")
 # message("CMAKE_CXX_FLAGS_RELEASE is ${CMAKE_CXX_FLAGS_RELEASE}")
 
+include_directories(./include)
 find_package(PkgConfig REQUIRED)
 pkg_search_module(GLFW REQUIRED glfw3)
 if(GLFW_FOUND)
@@ -35,12 +36,7 @@ if(GLEW_FOUND)
 endif()
 set(GL_LIBS ${GLEW_LIBRARIES} ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES})
 
-pkg_search_module(JSON REQUIRED jsoncpp)
-if(JSON_FOUND)
-    link_directories(${JSON_LIBRARY_DIRS})
-    include_directories(${JSON_INCLUDE_DIRS})
-endif()
-set(LIBS ${GL_LIBS} ${JSON_LIBRARIES})
+set(LIBS ${GL_LIBS})
 
 # compile
 include_directories(./include)
